@@ -7,7 +7,14 @@ pub struct LinearRegression {
 } 
 
 impl LinearRegression {
-    pub fn fit(data: &Vec<Vec<f32>>, labels: &Vec<Vec<f32>>) -> Self {
+
+    pub fn new() -> Self {
+        return Self {
+            weights: Vec::new(),
+            bias: 0.0
+        }
+    }
+    pub fn fit(&mut self, data: &Vec<Vec<f32>>, labels: &Vec<Vec<f32>>) {
         let mut X = data.clone(); 
         for x_vector in X.iter_mut() {
             x_vector.push(1.0);
@@ -21,10 +28,8 @@ impl LinearRegression {
         let parameters: Vec<f32> = parameter_matrix.into_iter().map(|parameter| parameter[0]).collect(); 
         let weights = parameters[0..parameters.len() - 2].to_vec();
         let bias = parameters[parameters.len() - 1];
-        return Self {
-            weights,
-            bias
-        }
+        self.weights = weights; 
+        self.bias = bias;
     }
 
     pub fn predict(&self, data: &Vec<Vec<f32>>) -> Vec<f32> {
