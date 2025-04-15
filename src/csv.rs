@@ -4,6 +4,7 @@ use std::collections::HashMap;
 
 #[derive(Clone, Debug)]
 pub enum DataTypeValue {
+    Null,
     Float(f32), 
     String(String)
 } 
@@ -61,20 +62,24 @@ impl DataFrame {
         for (i, value) in line.split(",").enumerate() {
             let column = self.index_to_column.get(&i).unwrap();
             let (_, dtype) = self.columns.get(column).unwrap(); 
-            match dtype {
-                DataType::Float => {
-                     match value.parse::<f32>() {
-                        Ok(parsed_value) => {
-                            row.push(DataTypeValue::Float(parsed_value));
-                        } 
-                        Err(_) => {
-                            self.convert_columns_to_string(i);
-                            row.push(DataTypeValue::String(value.to_string()));
-                        } 
-                     }
-                },
-                DataType::String => {
-                     row.push(DataTypeValue::String(value.to_string())); 
+            if value == "" {
+                row.push(DataTypeValue::Null);
+            } else {
+                match dtype {
+                    DataType::Float => {
+                        match value.parse::<f32>() {
+                            Ok(parsed_value) => {
+                                row.push(DataTypeValue::Float(parsed_value));
+                            } 
+                            Err(_) => {
+                                self.convert_columns_to_string(i);
+                                row.push(DataTypeValue::String(value.to_string()));
+                            } 
+                        }
+                    },
+                    DataType::String => {
+                        row.push(DataTypeValue::String(value.to_string())); 
+                    }
                 }
             }
         }
@@ -94,16 +99,69 @@ impl DataFrame {
          let column_name = self.index_to_column.get(&i).unwrap();
          self.columns.insert(column_name.clone(), (i, DataType::String));
     }
+
+    pub fn columns(&self) -> Vec<&String> {
+        (0..self.index_to_column.len()).map(|i| self.index_to_column.get(&i).unwrap()).collect()
+    }
+
+    pub fn data(&self) -> &Vec<Vec<DataTypeValue>> {
+        return &self.data;
+    }
+
+    pub fn len(&self) -> usize {
+        return self.data.len();
+    }
+
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::iter::zip;
 
     #[test]
     fn test_read_from_csv() {
         let filename = "housing.csv";
         let df = DataFrame::from_csv(filename); 
-        println!("{:?}", df.data);
+        let row_checks = 10; 
+        let multiplier = df.len()/row_checks;
+        let data = df.data(); 
+        let dtypes: Vec<DataType> = df.columns().iter().map(|column_name| df.columns.get(column_name.as_str()).unwrap().1.clone()).collect(); 
+        assert!((0..row_checks).all(|i| {
+            let row = data[i * multiplier].clone();
+            zip(dtypes.iter(), row).all(|(dtype, value)| {
+                if matches!(value, DataTypeValue::Null) {
+                    true
+                } else {
+                    match dtype {
+                        DataType::Float => {
+                            match value {
+                                DataTypeValue::Float(_) => {
+                                     true 
+                                },
+                                _ => false 
+                            }
+                        } 
+                        DataType::String => {
+                            match value {
+                                DataTypeValue::String(_) => {
+                                    true 
+                                },
+                                _ => {
+                                    false
+                                }
+                            }
+                        }
+                    }
+                }
+            })
+        }));
+        assert!(df.columns.iter().all(|(column_name, (_, dtype))| {
+             if column_name == "ocean_proximity" {
+                matches!(dtype, DataType::String)
+             } else {
+                matches!(dtype, DataType::Float)
+             }
+        }));
     }
 }
