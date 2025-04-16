@@ -1,5 +1,6 @@
 use std::collections::HashMap;
 use std::fs::File;
+use std::hash::Hash;
 use std::io::{self, BufReader, prelude::*};
 
 #[derive(Clone, Debug)]
@@ -123,11 +124,12 @@ impl DataFrame {
             .collect()
     }
 
-    pub fn data(&self) -> Vec<(&String, &Vec<DataTypeValue>)> {
-        self.columns
-            .iter()
-            .map(|(column_name, (_, _, data))| (column_name, data))
-            .collect()
+    pub fn data(&self) -> HashMap<&String, (&DataType, &Vec<DataTypeValue>)> {
+        let mut data_hashmap = HashMap::new();
+        for (column_name, (_, dtype, data)) in self.columns.iter() {
+            data_hashmap.insert(column_name, (dtype, data));
+        }
+        return data_hashmap;
     }
 
     pub fn len(&self) -> usize {
@@ -138,15 +140,14 @@ impl DataFrame {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use std::iter::zip;
 
     #[test]
     fn test_read_from_csv() {
         let filename = "housing.csv";
         let row_limit = 10;
         let df = DataFrame::from_csv(filename, Some(row_limit));
-        assert!(df.len() == row_limit);
         let column_names = df.columns();
+        assert!(df.len() == row_limit);
         assert!(
             column_names
                 == vec![
@@ -162,7 +163,16 @@ mod tests {
                     "ocean_proximity"
                 ]
         );
-        assert!(df.columns.iter().all(|(column_name, (_, dtype, data))| {
+        assert!(!df.columns.iter().any(|(_, (_, _, data))| {
+            data.iter()
+                .all(|value| matches!(value, DataTypeValue::Null))
+        }));
+        assert!(
+            df.columns
+                .iter()
+                .all(|(_, (_, _, data))| { data.len() == row_limit })
+        );
+        assert!(df.columns.iter().all(|(_, (_, dtype, data))| {
             match dtype {
                 DataType::Float => data.iter().all(|value| match value {
                     DataTypeValue::Float(_) => true,
@@ -183,5 +193,35 @@ mod tests {
                 matches!(dtype, DataType::Float)
             }
         }));
+    }
+
+    #[test]
+    fn test_get_data() {
+        let filename = "housing.csv";
+        let row_limit = 10;
+        let df = DataFrame::from_csv(filename, Some(row_limit));
+        let data = df.data();
+        let column_names = vec![
+            "longitude",
+            "latitude",
+            "housing_median_age",
+            "total_rooms",
+            "total_bedrooms",
+            "population",
+            "households",
+            "median_income",
+            "median_house_value",
+            "ocean_proximity",
+        ];
+        assert!(
+            column_names
+                .iter()
+                .all(|column_name| data.contains_key(&column_name.to_string()))
+        );
+        assert!(
+            df.columns
+                .iter()
+                .all(|(_, (_, _, data))| { data.len() == row_limit })
+        );
     }
 }
