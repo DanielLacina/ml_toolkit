@@ -33,7 +33,7 @@ impl Pipeline {
         }
     }
 
-    pub fn df_to_matrix(&self, df: &DataFrame) -> Vec<Vec<f32>> {
+    pub fn transform(&self, df: &DataFrame) -> Vec<Vec<f32>> {
         let mut output_matrix = vec![vec![]; df.len()];
         let data = df.data();
         for (column_name, (dtype, values)) in data {
@@ -67,6 +67,7 @@ impl Pipeline {
                 _ => {}
             }
         }
+        self.scale_data(&mut output_matrix);
         return output_matrix;
     }
 
@@ -96,14 +97,46 @@ impl Pipeline {
         return categories;
     }
 
-    // fn scale_data(&self, matrix: &mut Vec<Vec<f32>>) {
-    //     match self.scalar {
-    //         Scalar::Standard {
-    //         },
-    //         Scalar::None => {
-    //         }
-    //     }
-    // }
+    fn scale_data(&self, matrix: &mut Vec<Vec<f32>>, exclude: Vec<usize>) {
+        match self.scalar {
+            Scalar::Standard => {
+                for column_vector in matrix.iter_mut() {
+                    let mean = self.mean(&column_vector);
+                    let std = self.std(&column_vector, Some(mean));
+                    for value in column_vector.iter_mut() {
+                        *value = (*value - mean)/std;
+                    }
+                } 
+                 
+            },
+            Scalar::None => {
+            }
+        }
+    }
+
+    fn mean(&self, column_vector: &Vec<f32>) -> f32 {
+        let mut sum = 0.0; 
+        for value in column_vector {
+            sum += *value;
+        } 
+        return sum/column_vector.len() as f32;
+    }
+
+    fn std(&self, column_vector: &Vec<f32>, mean: Option<f32>) -> f32 {
+        let mean = if let Some(mean) = mean {
+            mean
+        } else {
+            self.mean(column_vector)
+        };
+        let mut sum = 0.0;
+        for value in column_vector {
+            sum += (value - mean).powf(2.0);
+        }
+        let std = f32::sqrt(sum / (column_vector.len() - 1) as f32);
+        return std;
+    }
+
+
 }
 
 #[cfg(test)]
@@ -117,6 +150,7 @@ mod tests {
         let scalar = Scalar::Standard;
         let pipeline = Pipeline::new(string_encoding, imputer_strategy, scalar);
         let df = DataFrame::from_csv("housing.csv", Some(10));
-        let output_matrix = pipeline.df_to_matrix(&df);
+        let output_matrix = pipeline.transform(&df);
+        println!("{:?}", output_matrix);
     }
 }
