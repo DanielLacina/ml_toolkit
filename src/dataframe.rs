@@ -132,6 +132,26 @@ impl DataFrame {
         return data_hashmap;
     }
 
+    pub fn median(&self, column_name: &str) -> f32 {
+        let (_, _, values) = self.columns.get(column_name).unwrap();
+        let mut cur_index: i32 = values.len() as i32 / 2;
+        let mut next_direction: i32 = 1;
+        let mut value = values[cur_index as usize].clone();
+        while matches!(value, DataTypeValue::Null) {
+            cur_index += next_direction;
+            next_direction = -(next_direction + 1);
+            value = values[cur_index as usize].clone();
+        }
+        match value {
+            DataTypeValue::Float(inner) => {
+                return inner;
+            }
+            _ => {
+                panic!("value must be a float")
+            }
+        }
+    }
+
     pub fn len(&self) -> usize {
         self.len
     }
