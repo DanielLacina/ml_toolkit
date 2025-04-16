@@ -142,7 +142,11 @@ impl DataFrame {
            } 
         }).collect();
         values.sort_by(|a, b| a.partial_cmp(b).unwrap());
-        return values[values.len()/2];
+        if values.len() % 2 == 0 {
+             return (values[values.len()/2] + values[(values.len() - 1)/2])/2.0;
+        } else {
+             return values[values.len()/2];
+        }
     }
 
     pub fn mean(&self, column_name: &str) -> f32 {
@@ -340,6 +344,7 @@ mod tests {
         medians.insert("median_house_value".to_string(), 320250.0000);
         assert!(medians.iter().all(|(column_name, median)| {
             let df_median = df.median(column_name);
+            println!("{}, {}", df_median, median);
             (df_median - median).abs() < 0.01
         }));
 
