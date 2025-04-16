@@ -17,15 +17,19 @@ pub enum Scalar {
 pub struct Pipeline {
     string_encoding: StringEncoding,
     imputer_strategy: ImputerStrategy,
-    scalar: Scalar
+    scalar: Scalar,
 }
 
 impl Pipeline {
-    pub fn new(string_encoding: StringEncoding, imputer_strategy: ImputerStrategy, scalar: Scalar) -> Self {
+    pub fn new(
+        string_encoding: StringEncoding,
+        imputer_strategy: ImputerStrategy,
+        scalar: Scalar,
+    ) -> Self {
         Self {
             string_encoding,
             imputer_strategy,
-            scalar
+            scalar,
         }
     }
 
@@ -92,14 +96,14 @@ impl Pipeline {
         return categories;
     }
 
-    fn scale_data(&self, matrix: &mut Vec<Vec<f32>>) {
-        match self.scalar {
-            Scalar::Standard {
-            },
-            Scalar::None => {
-            }
-        }
-    }
+    // fn scale_data(&self, matrix: &mut Vec<Vec<f32>>) {
+    //     match self.scalar {
+    //         Scalar::Standard {
+    //         },
+    //         Scalar::None => {
+    //         }
+    //     }
+    // }
 }
 
 #[cfg(test)]
@@ -110,7 +114,8 @@ mod tests {
     fn test_df_to_matrix() {
         let imputer_strategy = ImputerStrategy::Median;
         let string_encoding = StringEncoding::OneHot;
-        let pipeline = Pipeline::new(string_encoding, imputer_strategy);
+        let scalar = Scalar::Standard;
+        let pipeline = Pipeline::new(string_encoding, imputer_strategy, scalar);
         let df = DataFrame::from_csv("housing.csv", Some(1000000));
         let output_matrix = pipeline.df_to_matrix(&df);
     }

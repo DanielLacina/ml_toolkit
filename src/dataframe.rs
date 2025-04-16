@@ -1,6 +1,5 @@
 use std::collections::HashMap;
 use std::fs::File;
-use std::hash::Hash;
 use std::io::{self, BufReader, prelude::*};
 
 #[derive(Clone, Debug)]
@@ -14,6 +13,10 @@ pub enum DataTypeValue {
 pub enum DataType {
     Float,
     String,
+}
+
+impl PartialOrd for DataType {
+    
 }
 
 #[derive(Clone)]
@@ -132,8 +135,13 @@ impl DataFrame {
         return data_hashmap;
     }
 
+    fn sort_values(&self, values: &Vec<DataTypeValue>) -> Vec<DataTypeValue> {
+        let mut values = values.clone();
+    }
+
     pub fn median(&self, column_name: &str) -> f32 {
         let (_, _, values) = self.columns.get(column_name).unwrap();
+           
         let mut cur_index: i32 = values.len() as i32 / 2;
         let mut next_direction: i32 = 1;
         let mut value = values[cur_index as usize].clone();
@@ -150,6 +158,47 @@ impl DataFrame {
                 panic!("value must be a float")
             }
         }
+    }
+
+    pub fn mean(&self, column_name: &str) -> f32 {
+        let mut sum = 0.0;
+        let (_, dtype, values) = self.columns.get(column_name).unwrap();
+        if !matches!(dtype, DataType::Float) {
+            panic!("the mean can only be found from float values");
+        }
+        for value in values {
+            match value {
+                DataTypeValue::Float(inner) => {
+                    sum += *inner;
+                }
+                _ => {}
+            }
+        }
+        let mean = sum / values.len() as f32;
+        return mean;
+    }
+
+    pub fn std(&self, column_name: &str, mean: Option<f32>) -> f32 {
+        let mean = if let Some(mean) = mean {
+            mean
+        } else {
+            self.mean(column_name)
+        };
+        let mut sum = 0.0;
+        let (_, dtype, values) = self.columns.get(column_name).unwrap();
+        if !matches!(dtype, DataType::Float) {
+            panic!("the mean can only be found from float values");
+        }
+        for value in values {
+            match value {
+                DataTypeValue::Float(inner) => {
+                    sum += (*inner - mean).powf(2.0);
+                }
+                _ => {}
+            }
+        }
+        let std = f32::sqrt(sum / (values.len() - 1) as f32);
+        return std;
     }
 
     pub fn len(&self) -> usize {
@@ -243,5 +292,71 @@ mod tests {
                 .iter()
                 .all(|(_, (_, _, data))| { data.len() == row_limit })
         );
+    }
+
+    #[test]
+    fn test_get_mean() {
+        let filename = "housing.csv";
+        let row_limit = 10;
+        let df = DataFrame::from_csv(filename, Some(row_limit));
+        let mut means: HashMap<String, f32> = HashMap::new();
+        means.insert("longitude".to_string(), -122.24500);
+        means.insert("latitude".to_string(), 37.85000);
+        means.insert("housing_median_age".to_string(), 46.80000);
+        means.insert("total_rooms".to_string(), 2500.90000);
+        means.insert("total_bedrooms".to_string(), 470.10000);
+        means.insert("population".to_string(), 976.30000);
+        means.insert("households".to_string(), 458.20000);
+        means.insert("median_income".to_string(), 4.99608);
+        means.insert("median_house_value".to_string(), 314480.00000);
+        assert!(
+            means
+                .iter()
+                .all(|(column_name, mean)| (df.mean(column_name) - mean).abs() < 0.01)
+        );
+    }
+
+    #[test]
+    fn test_get_std() {
+        let filename = "housing.csv";
+        let row_limit = 10;
+        let df = DataFrame::from_csv(filename, Some(row_limit));
+
+        let mut stds: HashMap<String, f32> = HashMap::new();
+        stds.insert("longitude".to_string(), 0.011785);
+        stds.insert("latitude".to_string(), 0.012472);
+        stds.insert("housing_median_age".to_string(), 10.064238);
+        stds.insert("total_rooms".to_string(), 1858.210456);
+        stds.insert("total_bedrooms".to_string(), 315.910483);
+        stds.insert("population".to_string(), 648.036702);
+        stds.insert("households".to_string(), 323.469662);
+        stds.insert("median_income".to_string(), 2.243359);
+        stds.insert("median_house_value".to_string(), 68355.310287);
+        assert!(stds.iter().all(|(column_name, std)| {
+            let df_std = df.std(column_name, None);
+            (df_std - std).abs() < 0.01
+        }));
+    }
+
+    #[test]
+    fn test_get_median() {
+        let filename = "housing.csv";
+        let row_limit = 10;
+        let df = DataFrame::from_csv(filename, Some(row_limit));
+        let mut medians: HashMap<String, f32> = HashMap::new();
+        medians.insert("longitude".to_string(), -122.2500);
+        medians.insert("latitude".to_string(), 37.8500);
+        medians.insert("housing_median_age".to_string(), 52.0000);
+        medians.insert("total_rooms".to_string(), 2081.0000);
+        medians.insert("total_bedrooms".to_string(), 384.5000);
+        medians.insert("population".to_string(), 829.5000);
+        medians.insert("households".to_string(), 386.5000);
+        medians.insert("median_income".to_string(), 3.9415);
+        medians.insert("median_house_value".to_string(), 320250.0000);
+        assert!(medians.iter().all(|(column_name, median)| {
+            let df_median = df.median(column_name);
+            (df_median - median).abs() < 0.01
+        }));
+
     }
 }
