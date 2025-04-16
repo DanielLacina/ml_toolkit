@@ -133,19 +133,18 @@ impl DataFrame {
 
     pub fn median(&self, column_name: &str) -> f32 {
         let (_, _, values) = self.columns.get(column_name).unwrap();
-        let mut values: Vec<f32> = values.iter().filter_map(|value| {
-           match value {
-              DataTypeValue::Float(inner) => {
-                Some(*inner)
-              }, 
-              _ => None
-           } 
-        }).collect();
+        let mut values: Vec<f32> = values
+            .iter()
+            .filter_map(|value| match value {
+                DataTypeValue::Float(inner) => Some(*inner),
+                _ => None,
+            })
+            .collect();
         values.sort_by(|a, b| a.partial_cmp(b).unwrap());
         if values.len() % 2 == 0 {
-             return (values[values.len()/2] + values[(values.len() - 1)/2])/2.0;
+            return (values[values.len() / 2] + values[(values.len() - 1) / 2]) / 2.0;
         } else {
-             return values[values.len()/2];
+            return values[values.len() / 2];
         }
     }
 
@@ -202,7 +201,7 @@ mod tests {
     #[test]
     fn test_read_from_csv() {
         let filename = "housing.csv";
-        let row_limit = 10;
+        let row_limit = 1000;
         let df = DataFrame::from_csv(filename, Some(row_limit));
         let column_names = df.columns();
         assert!(df.len() == row_limit);
@@ -344,9 +343,7 @@ mod tests {
         medians.insert("median_house_value".to_string(), 320250.0000);
         assert!(medians.iter().all(|(column_name, median)| {
             let df_median = df.median(column_name);
-            println!("{}, {}", df_median, median);
             (df_median - median).abs() < 0.01
         }));
-
     }
 }

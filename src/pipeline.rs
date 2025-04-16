@@ -1,5 +1,5 @@
 use crate::dataframe::{DataFrame, DataType, DataTypeValue};
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 
 pub enum ImputerStrategy {
     Median,
@@ -36,7 +36,8 @@ impl Pipeline {
     pub fn transform(&self, df: &DataFrame) -> Vec<Vec<f32>> {
         let mut output_matrix = vec![vec![]; df.len()];
         let data = df.data();
-        for (column_name, (dtype, values)) in data {
+        let mut columns_to_not_scale = HashSet::new();
+        for (j, (column_name, (dtype, values))) in data.iter().enumerate() {
             match dtype {
                 DataType::Float => {
                     let median = df.median(column_name);
@@ -50,7 +51,7 @@ impl Pipeline {
                                     output_matrix[i].push(median);
                                 }
                             },
-                            _ => {}
+                            _ => panic!("implementation error"),
                         }
                     }
                 }
@@ -62,12 +63,12 @@ impl Pipeline {
                                 output_matrix[i].push(*cat_value);
                             }
                         }
+                        columns_to_not_scale.insert(j);
                     }
                 },
-                _ => {}
             }
         }
-        self.scale_data(&mut output_matrix);
+        self.scale_data(&mut output_matrix, &columns_to_not_scale);
         return output_matrix;
     }
 
@@ -97,29 +98,31 @@ impl Pipeline {
         return categories;
     }
 
-    fn scale_data(&self, matrix: &mut Vec<Vec<f32>>, exclude: Vec<usize>) {
+    fn scale_data(&self, matrix: &mut Vec<Vec<f32>>, exclude: &HashSet<usize>) {
         match self.scalar {
             Scalar::Standard => {
-                for column_vector in matrix.iter_mut() {
+                for i in (0..matrix[0].len()) {
+                    if exclude.contains(&i) {
+                        continue;
+                    }
+                    let column_vector = matrix.iter().map(|v| v[i]).collect();
                     let mean = self.mean(&column_vector);
                     let std = self.std(&column_vector, Some(mean));
-                    for value in column_vector.iter_mut() {
-                        *value = (*value - mean)/std;
+                    for row_vector in matrix.iter_mut() {
+                        row_vector[i] = (row_vector[i] - mean) / std;
                     }
-                } 
-                 
-            },
-            Scalar::None => {
+                }
             }
+            Scalar::None => {}
         }
     }
 
     fn mean(&self, column_vector: &Vec<f32>) -> f32 {
-        let mut sum = 0.0; 
+        let mut sum = 0.0;
         for value in column_vector {
             sum += *value;
-        } 
-        return sum/column_vector.len() as f32;
+        }
+        return sum / column_vector.len() as f32;
     }
 
     fn std(&self, column_vector: &Vec<f32>, mean: Option<f32>) -> f32 {
@@ -135,8 +138,6 @@ impl Pipeline {
         let std = f32::sqrt(sum / (column_vector.len() - 1) as f32);
         return std;
     }
-
-
 }
 
 #[cfg(test)]
@@ -144,13 +145,15 @@ mod tests {
     use super::*;
 
     #[test]
-    fn test_df_to_matrix() {
+    fn test_pipeline_transform() {
         let imputer_strategy = ImputerStrategy::Median;
         let string_encoding = StringEncoding::OneHot;
         let scalar = Scalar::Standard;
         let pipeline = Pipeline::new(string_encoding, imputer_strategy, scalar);
-        let df = DataFrame::from_csv("housing.csv", Some(10));
+        let df = DataFrame::from_csv("housing.csv", Some(10000));
         let output_matrix = pipeline.transform(&df);
-        println!("{:?}", output_matrix);
+        assert!(output_matrix.iter().all(|v| {
+             v.len() == 14
+        }));
     }
 }

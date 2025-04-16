@@ -45,4 +45,8 @@ impl LinearRegression {
             .collect();
         return outputs;
     }
+
+    pub fn weights(&self) -> &Vec<f32> {
+        return &self.weights;
+    } 
 }
