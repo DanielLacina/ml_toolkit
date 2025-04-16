@@ -2,8 +2,8 @@ mod dataframe;
 mod linear_regression;
 mod matrices;
 mod pipeline;
+mod inference;
 use dataframe::DataFrame;
-use linear_regression::LinearRegression;
 use pipeline::{Pipeline, Scalar, StringEncoding, ImputerStrategy};
 
 fn main() {
@@ -15,8 +15,4 @@ fn main() {
     let inputs = features_pipeline.transform(&features_df);
     let labels_pipeline = Pipeline::new(StringEncoding::OneHot, ImputerStrategy::Median, Scalar::None);
     let labels = labels_pipeline.transform(&labels_df);
-    let mut linear_regression = LinearRegression::new();
-    linear_regression.fit(&inputs, &labels);
-    println!("{:?}", linear_regression.weights());
-    println!("{}", linear_regression.bias());
 }

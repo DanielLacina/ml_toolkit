@@ -4,13 +4,15 @@ use std::iter::zip;
 pub struct LinearRegression {
     weights: Vec<f32>,
     bias: f32,
+    ridge_value: f32
 }
 
 impl LinearRegression {
-    pub fn new() -> Self {
+    pub fn new(ridge_value: f32) -> Self {
         return Self {
             weights: Vec::new(),
             bias: 0.0,
+            ridge_value
         };
     }
     pub fn fit(&mut self, data: &Vec<Vec<f32>>, labels: &Vec<Vec<f32>>) {
@@ -20,7 +22,18 @@ impl LinearRegression {
         }
         let y = labels.clone();
         let X_transpose = matrices::transpose_matrix(&X);
-        let X_output = matrices::multiply_matrices(&X_transpose, &X);
+        let mut X_output = matrices::multiply_matrices(&X_transpose, &X);
+        if self.ridge_value != 0.0 {  
+            X_output = X_output.iter().enumerate().map(|(i, row_vector)| {
+                row_vector.iter().enumerate().map(|(j, value)| {
+                    if i == j {
+                        value + self.ridge_value
+                    } else {
+                        *value
+                    } 
+                }).collect()  
+            }).collect();
+        }
         let y_output = matrices::multiply_matrices(&X_transpose, &y);
         let X_output_inverse = matrices::inverse_matrix(&X_output);
         let parameter_matrix = matrices::multiply_matrices(&X_output_inverse, &y_output);
