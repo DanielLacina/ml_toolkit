@@ -49,4 +49,8 @@ impl LinearRegression {
     pub fn weights(&self) -> &Vec<f32> {
         return &self.weights;
     } 
+
+    pub fn bias(&self) -> f32 {
+        return self.bias;
+    }
 }

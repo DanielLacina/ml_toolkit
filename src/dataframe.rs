@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::fs::File;
 use std::io::{self, BufReader, prelude::*};
 
@@ -31,13 +31,31 @@ impl DataFrame {
         };
     }
 
+    // pub fn from_hashmap(hashmap: &HashMap<String, Vec<f32>>) -> Self {
+    //     let mut df = DataFrame::new();
+    //     let mut len = None; 
+    //     for (column_name, values) in hashmap.iter() {
+    //         df.insert_header(column_name); 
+    //         let (_, _, data) = df.columns.get_mut(column_name).unwrap();
+    //         *data = values.iter().map(|value| DataTypeValue::Float(*value)).collect();
+    //         if let Some(len) = len {
+    //             assert!(data.len() == len);
+    //         } else {
+    //             len = Some(data.len()); 
+    //         }
+    //     }
+    //     df.len = len.unwrap();
+    //     return df;
+    // }
+
+
     pub fn from_csv(filename: &str, row_limit: Option<usize>) -> Self {
         let mut df = DataFrame::new();
         let file = File::open(filename).unwrap();
         let reader = BufReader::new(file);
         let mut reader_lines = reader.lines();
         let headers = reader_lines.next().unwrap().unwrap();
-        df.insert_headers(&headers);
+        df.insert_headers_as_string(&headers);
         let row_limit = if let Some(limit) = row_limit {
             limit
         } else {
@@ -53,7 +71,9 @@ impl DataFrame {
         return df;
     }
 
-    fn insert_headers(&mut self, headers: &str) {
+
+
+    fn insert_headers_as_string(&mut self, headers: &str) {
         for header in headers.split(",") {
             self.insert_header(header);
         }
@@ -123,6 +143,41 @@ impl DataFrame {
             .collect()
     }
 
+    pub fn remove_column(&mut self, column_name: &str) {
+        self.columns.remove(column_name); 
+    } 
+
+    fn insert_column(&mut self, column_name: &str, values: &Vec<DataTypeValue>) {
+        if self.columns.len() == 0 {
+            self.len = values.len(); 
+        }
+        self.insert_header(column_name);
+        let (_, _, data) = self.columns.get_mut(column_name).unwrap();
+        *data = values.clone(); 
+    }
+
+    pub fn get_columns_as_df(&self, columns: &Vec<String>) -> DataFrame {
+        let mut df = DataFrame::new(); 
+        for column_name in columns {
+            let (_, _, data) = self.columns.get(column_name.as_str()).unwrap();
+            df.insert_column(column_name.as_str(), data);
+        }
+        return df;
+    }
+
+    // pub fn remove_columns(&mut self, except: HashSet<String>) {
+    //     let columns_to_remove: Vec<String> = self.columns.iter().filter_map(|(column_name, (_, _, _))| {
+    //         if except.contains(column_name.as_str()) {
+    //             return None;
+    //         } else {
+    //             return Some(column_name.clone());
+    //         }
+    //     }).collect();
+    //     for column in columns_to_remove {
+    //         self.columns.remove(&column);
+    //     }
+    // }
+
     pub fn data(&self) -> HashMap<&String, (&DataType, &Vec<DataTypeValue>)> {
         let mut data_hashmap = HashMap::new();
         for (column_name, (_, dtype, data)) in self.columns.iter() {
@@ -130,6 +185,12 @@ impl DataFrame {
         }
         return data_hashmap;
     }
+
+    pub fn get_column(&self, column_name: &str) -> (&DataType, &Vec<DataTypeValue>) {
+        let (_, dtype, values) = self.columns.get(column_name).unwrap();
+        return (dtype, values);
+    }
+
 
     pub fn median(&self, column_name: &str) -> f32 {
         let (_, _, values) = self.columns.get(column_name).unwrap();
