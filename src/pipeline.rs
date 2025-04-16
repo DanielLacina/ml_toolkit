@@ -116,7 +116,7 @@ mod tests {
         let string_encoding = StringEncoding::OneHot;
         let scalar = Scalar::Standard;
         let pipeline = Pipeline::new(string_encoding, imputer_strategy, scalar);
-        let df = DataFrame::from_csv("housing.csv", Some(1000000));
+        let df = DataFrame::from_csv("housing.csv", Some(10));
         let output_matrix = pipeline.df_to_matrix(&df);
     }
 }

@@ -15,10 +15,6 @@ pub enum DataType {
     String,
 }
 
-impl PartialOrd for DataType {
-    
-}
-
 #[derive(Clone)]
 pub struct DataFrame {
     index_to_column: HashMap<usize, String>,
@@ -135,29 +131,18 @@ impl DataFrame {
         return data_hashmap;
     }
 
-    fn sort_values(&self, values: &Vec<DataTypeValue>) -> Vec<DataTypeValue> {
-        let mut values = values.clone();
-    }
-
     pub fn median(&self, column_name: &str) -> f32 {
         let (_, _, values) = self.columns.get(column_name).unwrap();
-           
-        let mut cur_index: i32 = values.len() as i32 / 2;
-        let mut next_direction: i32 = 1;
-        let mut value = values[cur_index as usize].clone();
-        while matches!(value, DataTypeValue::Null) {
-            cur_index += next_direction;
-            next_direction = -(next_direction + 1);
-            value = values[cur_index as usize].clone();
-        }
-        match value {
-            DataTypeValue::Float(inner) => {
-                return inner;
-            }
-            _ => {
-                panic!("value must be a float")
-            }
-        }
+        let mut values: Vec<f32> = values.iter().filter_map(|value| {
+           match value {
+              DataTypeValue::Float(inner) => {
+                Some(*inner)
+              }, 
+              _ => None
+           } 
+        }).collect();
+        values.sort_by(|a, b| a.partial_cmp(b).unwrap());
+        return values[values.len()/2];
     }
 
     pub fn mean(&self, column_name: &str) -> f32 {
