@@ -3,6 +3,8 @@ mod linear_regression;
 mod matrices;
 mod pipeline;
 mod inference;
+mod sampling;
+
 use dataframe::DataFrame;
 use pipeline::{Pipeline, Scalar, StringEncoding, ImputerStrategy};
 
