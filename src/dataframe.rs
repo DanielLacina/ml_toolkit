@@ -1,7 +1,10 @@
 use std::collections::{HashMap, HashSet};
+use std::iter::zip;
 use std::fs::File;
 use std::io::{self, BufReader, prelude::*};
 use std::cmp::Ordering;
+
+const IDS: &str = "ids";
 
 #[derive(Clone, Debug)]
 pub enum DataTypeValue {
@@ -124,7 +127,7 @@ impl DataFrame {
     //     df.len = len.unwrap();
     //     return df;
     // }
-
+    
 
     pub fn from_csv(filename: &str, row_limit: Option<usize>) -> Self {
         let mut df = DataFrame::new();
@@ -166,10 +169,15 @@ impl DataFrame {
             .insert(header_index, header.to_string());
     }
 
+    fn insert_ids(&mut self, count: usize) {
+        let ids = (0..count).map(|i| DataTypeValue::Float(i as f32)).collect(); 
+        self.insert_column(IDS, &ids);
+    }
+
     fn insert_row_as_string(&mut self, line: &str) {
         for (i, value) in line.split(",").enumerate() {
             let column_name = self.index_to_column.get(&i).unwrap().clone();
-            let (_, dtype, _) = self.columns.get(&column_name).unwrap();
+            let (dtype, _) = self.get_column(&column_name);
             if value == "" {
                 self.insert_value(&column_name, DataTypeValue::Null);
             } else {
@@ -194,15 +202,16 @@ impl DataFrame {
             }
         }
         self.len += 1;
+        self.insert_ids(self.len);
     }
 
     fn insert_value(&mut self, column_name: &str, value: DataTypeValue) {
-        let (_, _, data) = self.columns.get_mut(column_name).unwrap();
-        data.push(value)
+        let (_, data) = self.get_column_mut(column_name);
+        data.push(value);
     }
 
     fn convert_column_values_to_string(&mut self, column_name: &str) {
-        let (_, dtype, data) = self.columns.get_mut(column_name).unwrap();
+        let (dtype, data) = self.get_column_mut(column_name);
         for value in data.iter_mut() {
             match value {
                 DataTypeValue::Float(inner) => {
@@ -227,9 +236,10 @@ impl DataFrame {
     fn insert_column(&mut self, column_name: &str, values: &Vec<DataTypeValue>) {
         if self.columns.len() == 0 {
             self.len = values.len(); 
+            self.insert_ids(values.len());
         }
         self.insert_header(column_name);
-        let (_, _, data) = self.columns.get_mut(column_name).unwrap();
+        let (_, data) = self.get_column_mut(column_name);
         *data = values.clone(); 
     }
 
@@ -243,9 +253,10 @@ impl DataFrame {
     }
 
     pub fn bins(&self, column_name: &str, num_bins: usize) -> Vec<i32> {
-        let (_, _, data)  = self.columns.get(column_name).unwrap();
+        let (_, data)  = self.get_column(column_name);
+        let (_, ids) = self.get_column(IDS);
         let mut data = data.clone();
-        data.sort_by(|a, b| a.partial_cmp(b).unwrap());
+        let mut ids = ids.clone();
     }
 
     // pub fn remove_columns(&mut self, except: HashSet<String>) {
@@ -263,8 +274,9 @@ impl DataFrame {
 
     pub fn data(&self) -> HashMap<&String, (&DataType, &Vec<DataTypeValue>)> {
         let mut data_hashmap = HashMap::new();
-        for (column_name, (_, dtype, data)) in self.columns.iter() {
-            data_hashmap.insert(column_name, (dtype, data));
+        for (_, column_name) in self.index_to_column.iter() {
+           let (dtype, data) = self.get_column(column_name);
+           data_hashmap.insert(column_name, (dtype, data));
         }
         return data_hashmap;
     }
@@ -274,9 +286,14 @@ impl DataFrame {
         return (dtype, values);
     }
 
+    fn get_column_mut(&mut self, column_name: &str) -> (&mut DataType, &mut Vec<DataTypeValue>) {
+        let (_, dtype, values) = self.columns.get_mut(column_name).unwrap();
+        return (dtype, values);
+    }
+
 
     pub fn median(&self, column_name: &str) -> f32 {
-        let (_, _, values) = self.columns.get(column_name).unwrap();
+        let (_, values) = self.get_column(column_name);
         let mut values: Vec<f32> = values
             .iter()
             .filter_map(|value| match value {
@@ -294,7 +311,7 @@ impl DataFrame {
 
     pub fn mean(&self, column_name: &str) -> f32 {
         let mut sum = 0.0;
-        let (_, dtype, values) = self.columns.get(column_name).unwrap();
+        let (dtype, values) = self.get_column(column_name);
         if !matches!(dtype, DataType::Float) {
             panic!("the mean can only be found from float values");
         }
@@ -317,7 +334,7 @@ impl DataFrame {
             self.mean(column_name)
         };
         let mut sum = 0.0;
-        let (_, dtype, values) = self.columns.get(column_name).unwrap();
+        let (dtype, values) = self.get_column(column_name);
         if !matches!(dtype, DataType::Float) {
             panic!("the mean can only be found from float values");
         }
