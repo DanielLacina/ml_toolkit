@@ -1,3 +1,4 @@
+use core::num;
 use std::collections::{HashMap, HashSet};
 use std::iter::zip;
 use std::fs::File;
@@ -246,17 +247,25 @@ impl DataFrame {
     pub fn get_columns_as_df(&self, columns: &Vec<String>) -> DataFrame {
         let mut df = DataFrame::new(); 
         for column_name in columns {
-            let (_, _, data) = self.columns.get(column_name.as_str()).unwrap();
+            let (_, data) = self.get_column(column_name);
             df.insert_column(column_name.as_str(), data);
         }
         return df;
     }
 
-    pub fn bins(&self, column_name: &str, num_bins: usize) -> Vec<i32> {
+    pub fn bins(&self, column_name: &str, num_bins: usize) -> Vec<(DataTypeValue, DataTypeValue, u32)> {
         let (_, data)  = self.get_column(column_name);
         let (_, ids) = self.get_column(IDS);
-        let mut data = data.clone();
-        let mut ids = ids.clone();
+        let mut zipped: Vec<(DataTypeValue, DataTypeValue)> = ids.clone().into_iter().zip(data.clone()).collect(); 
+        zipped.sort_by(|(_, _), (a, b)| a.cmp(b));
+        let bin_size = zipped.len()/num_bins; 
+        println!("{}", bin_size);
+        let mut bins = Vec::new();
+        for (i, (id, value)) in zipped.into_iter().enumerate() {
+            bins.push((id, value, (i / bin_size) as u32)); 
+        }
+        bins.sort_by(|(a, _, _), (b, _, _)| a.cmp(b));
+        return bins;
     }
 
     // pub fn remove_columns(&mut self, except: HashSet<String>) {
@@ -506,5 +515,12 @@ mod tests {
             let df_median = df.median(column_name);
             (df_median - median).abs() < 0.01
         }));
+    }
+
+    #[test]
+    fn test_get_bins() {
+        let filename = "housing.csv";
+        let row_limit = 10000;
+        let df = DataFrame::from_csv(filename, Some(row_limit));
     }
 }
