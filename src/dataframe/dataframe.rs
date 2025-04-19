@@ -132,7 +132,7 @@ impl DataFrame {
         let (_, ids) = self.get_column(IDS);
         let mut zipped: Vec<(DataTypeValue, DataTypeValue)> =
             ids.clone().into_iter().zip(data.clone()).collect();
-        zipped.sort_by(|(_, _), (a, b)| a.cmp(b));
+        zipped.sort_by(|(_, a), (_, b)| a.cmp(b));
         let bin_size = zipped.len() / num_bins;
         let mut bins = Vec::new();
         for (i, (id, value)) in zipped.into_iter().enumerate() {
@@ -387,8 +387,22 @@ mod tests {
     #[test]
     fn test_get_bins() {
         let filename = "housing.csv";
-        let row_limit = 10000;
+        let row_limit = 10;
+        let bins = 5;
+        let bin_size = row_limit/bins; 
         let df = df_from_csv(filename, Some(row_limit));
-        println!("{:?}", df.bins("median_income", 6));
+        let mut bins = df.bins("population", bins);
+        bins.sort_by(|(_, _, a), (_, _, b)| a.cmp(b)); 
+        assert!(bins.iter().enumerate().all(|(i, (_, a_value, bin_value))| {
+             let bin_row_count_by_bin = i/(*bin_value as usize + 1); 
+             let bin_cmp_start = (i as i32 - bin_row_count_by_bin as i32 - bin_size as i32).max(0) as usize;
+             let bin_cmp_end = i - bin_row_count_by_bin; 
+             for (_, b_value, _) in bins[bin_cmp_start..bin_cmp_end].iter() {
+                if !(a_value >= b_value) {
+                    return false;
+                }
+             }  
+             true 
+        }));
     }
 }
