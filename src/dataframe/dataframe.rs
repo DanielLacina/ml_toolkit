@@ -27,11 +27,13 @@ impl DataFrame {
         values: &Vec<DataTypeValue>,
         dtype: &DataType,
     ) {
+        // column values vector must have the same length as the other
+        // column values vectors to keep everything consistent 
         assert!(values.len() == self.len());
         let header_index = self.columns.len();
         self.columns.insert(
             column_name.to_string(),
-            (header_index, dtype.clone(), Vec::new()),
+            (header_index, dtype.clone(), values.clone()),
         );
         self.index_to_column
             .insert(header_index, column_name.to_string());
@@ -66,6 +68,7 @@ impl DataFrame {
     }
 
     pub fn insert_row(&mut self, data_hashmap: &HashMap<String, DataTypeValue>) {
+        assert!(data_hashmap.len() >= self.columns.len() - 1 && data_hashmap.len() <= self.columns.len());
         for (column_name, value) in data_hashmap.iter() {
             let (dtype, data) = self.get_column_mut(column_name);
             let right_dtype = match dtype {
@@ -101,7 +104,7 @@ impl DataFrame {
             match value {
                 DataTypeValue::Float(inner) => {
                     *value = DataTypeValue::String(inner.to_string());
-                }
+                },
                 _ => {}
             }
         }
@@ -116,10 +119,12 @@ impl DataFrame {
 
     pub fn get_columns_as_df(&self, columns: &Vec<String>) -> DataFrame {
         let mut df = DataFrame::new();
+        df.len = self.len();
         for column_name in columns {
             let (dtype, data) = self.get_column(column_name);
             df.insert_column(column_name.as_str(), data, dtype);
         }
+        df.update_ids();
         return df;
     }
 
@@ -291,6 +296,22 @@ mod tests {
     }
 
     #[test]
+    fn test_get_columns_as_df() {
+        let filename = "housing.csv";
+        let row_limit = 10;
+        let df = df_from_csv(filename, Some(row_limit));
+        let columns = vec!["median_income".to_string(), "households".to_string(), "total_bedrooms".to_string()]; 
+        let new_df = df.get_columns_as_df(&columns);   
+        assert!(new_df.columns().len() == columns.len() + 1);
+        assert!(columns.iter().all(|column_name| {
+            let (_, values) = new_df.get_column(column_name);
+            values.len() == row_limit
+        }));
+        let (_, values) = new_df.get_column(IDS); 
+        assert!(values.len() == row_limit);
+    }
+
+    #[test]
     fn test_get_data() {
         let filename = "housing.csv";
         let row_limit = 10;
@@ -318,6 +339,104 @@ mod tests {
             data.len() == row_limit
         }));
     }
+
+    #[test]
+    #[should_panic]
+    fn test_insert_column_invalid_values_length() {
+        let mut df = DataFrame::new();
+        let column_name = "ocean_proximity";
+        let values = vec!["near ocean", "far from ocean"].iter().map(|value| DataTypeValue::String(value.to_string())).collect();
+        let dtype = DataType::String;
+        df.insert_column(column_name, &values, &dtype);
+     }
+
+     #[test]
+     fn test_insert_column() {
+        let mut df = DataFrame::new();
+        let column_name = "ocean_proximity";
+        let dtype = DataType::String;
+        df.insert_column(column_name, &Vec::new(), &dtype);
+        let (column_dtype, column_values) = df.get_column(column_name); 
+        assert!(matches!(column_dtype, dtype));
+        assert!(column_values.len() == 0);
+     }
+
+     #[test]
+     fn test_get_columns() {
+        let filename = "housing.csv";
+        let row_limit = 10;
+        let df = df_from_csv(filename, Some(row_limit));
+        let (column_dtype, column_values) = df.get_column("ocean_proximity");  
+        assert!(column_values.len() == row_limit);
+        assert!(matches!(column_dtype, DataType::String));
+     }
+
+     #[test]
+     fn test_convert_column_values_to_string() {
+        let filename = "housing.csv";
+        let row_limit = 10;
+        let mut df = df_from_csv(filename, Some(row_limit));
+        let column_name = "median_income";
+        df.convert_column_values_to_string(column_name);        
+        let (dtype, values) = df.get_column(column_name);
+        assert!(matches!(dtype, DataType::String));
+        assert!(values.iter().all(|value| {
+             matches!(value, DataTypeValue::String(_)) || matches!(value, DataTypeValue::Null) 
+        }));
+     }
+
+     #[test]
+     #[should_panic]
+     fn test_insert_row_invalid_column() {
+        let mut df = DataFrame::new();
+        df.insert_column("income", &Vec::new(), &DataType::Float);
+        let mut data_hashmap = HashMap::new();
+        data_hashmap.insert("not income".to_string(), DataTypeValue::Float(10.0)); 
+        df.insert_row(&data_hashmap);
+     }
+
+     #[test]
+     #[should_panic]
+     fn test_insert_row_not_specifying_all_columns() {
+        let mut df = DataFrame::new();
+        df.insert_column("income", &Vec::new(), &DataType::Float);
+        df.insert_column("location", &Vec::new(), &DataType::String);
+        let mut data_hashmap = HashMap::new();
+        data_hashmap.insert("income".to_string(), DataTypeValue::Float(10.0)); 
+        df.insert_row(&data_hashmap);
+     }
+
+     #[test]
+     fn test_insert_row() {
+        let mut df = DataFrame::new();
+        df.insert_column("income", &Vec::new(), &DataType::Float);
+        df.insert_column("location", &Vec::new(), &DataType::String);
+        let mut data_hashmap = HashMap::new();
+        let income = DataTypeValue::Float(10.0); 
+        let location = DataTypeValue::String("Washington".to_string());
+        data_hashmap.insert("income".to_string(), income.clone()); 
+        data_hashmap.insert("location".to_string(), location.clone());
+        df.insert_row(&data_hashmap);
+        assert!(data_hashmap.iter().all(|(column_name, value)| {
+            let (_, values) = df.get_column(column_name);  
+            *values == vec![value.clone()] 
+        }));
+     }
+
+     #[test]
+     fn test_get_columns_by_index() {
+        let filename = "housing.csv";
+        let row_limit = 10;
+        let df = df_from_csv(filename, Some(row_limit));
+        // columns ordered by index 
+        let columns = df.columns(); 
+        let (dtype, _) = df.get_column(columns[0]); 
+        let (column_name, column_dtype, column_values) = df.get_column_by_index(0);  
+        assert!(column_values.len() == row_limit);
+        assert!(matches!(column_dtype, dtype));
+        assert!(column_name == columns[0]);
+     }
+
 
     #[test]
     fn test_get_mean() {

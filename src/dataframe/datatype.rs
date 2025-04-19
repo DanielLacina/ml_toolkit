@@ -22,7 +22,7 @@ impl Ord for DataTypeValue {
                 Self::Float(inner) => Some(*inner),
                 Self::Id(inner) => Some(*inner as f32),
                 Self::Null => None,
-                _ => panic!("other datatypes cannot be compared"),
+                _ => panic!("other datatypes are not strings")
             })
             .collect();
         let current = values[0];
@@ -48,6 +48,19 @@ impl Ord for DataTypeValue {
 
 impl PartialEq for DataTypeValue {
     fn eq(&self, other: &Self) -> bool {
+        match self {
+           DataTypeValue::String(inner_a) => {
+            match other {
+                DataTypeValue::String(inner_b) => {
+                    return inner_a == inner_b;
+                },
+                _ => {
+                    return false;
+                } 
+            }
+           }
+           _ => {}
+        }  
         let values: Vec<Option<f32>> = vec![self, other]
             .iter()
             .map(|dtype| match dtype {
