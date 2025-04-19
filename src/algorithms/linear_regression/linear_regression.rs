@@ -1,10 +1,10 @@
-use crate::matrices;
+use crate::linear_algebra::matrices;
 use std::iter::zip;
 
 pub struct LinearRegression {
     weights: Vec<f32>,
     bias: f32,
-    ridge_value: f32
+    ridge_value: f32,
 }
 
 impl LinearRegression {
@@ -12,7 +12,7 @@ impl LinearRegression {
         return Self {
             weights: Vec::new(),
             bias: 0.0,
-            ridge_value
+            ridge_value,
         };
     }
     pub fn fit(&mut self, data: &Vec<Vec<f32>>, labels: &Vec<Vec<f32>>) {
@@ -23,16 +23,24 @@ impl LinearRegression {
         let y = labels.clone();
         let X_transpose = matrices::transpose_matrix(&X);
         let mut X_output = matrices::multiply_matrices(&X_transpose, &X);
-        if self.ridge_value != 0.0 {  
-            X_output = X_output.iter().enumerate().map(|(i, row_vector)| {
-                row_vector.iter().enumerate().map(|(j, value)| {
-                    if i == j {
-                        value + self.ridge_value
-                    } else {
-                        *value
-                    } 
-                }).collect()  
-            }).collect();
+        if self.ridge_value != 0.0 {
+            X_output = X_output
+                .iter()
+                .enumerate()
+                .map(|(i, row_vector)| {
+                    row_vector
+                        .iter()
+                        .enumerate()
+                        .map(|(j, value)| {
+                            if i == j {
+                                value + self.ridge_value
+                            } else {
+                                *value
+                            }
+                        })
+                        .collect()
+                })
+                .collect();
         }
         let y_output = matrices::multiply_matrices(&X_transpose, &y);
         let X_output_inverse = matrices::inverse_matrix(&X_output);
@@ -61,7 +69,7 @@ impl LinearRegression {
 
     pub fn weights(&self) -> &Vec<f32> {
         return &self.weights;
-    } 
+    }
 
     pub fn bias(&self) -> f32 {
         return self.bias;

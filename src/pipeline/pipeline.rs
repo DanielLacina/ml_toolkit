@@ -51,7 +51,7 @@ impl Pipeline {
                                     output_matrix[i].push(median);
                                 }
                             },
-                            _ => panic!("implementation error"),
+                            _ => break,
                         }
                     }
                 }
@@ -66,6 +66,9 @@ impl Pipeline {
                         columns_to_not_scale.insert(j);
                     }
                 },
+                _ => {
+                    break;
+                }
             }
         }
         self.scale_data(&mut output_matrix, &columns_to_not_scale);
@@ -79,7 +82,7 @@ impl Pipeline {
                 DataTypeValue::String(inner) => inner.clone(),
                 DataTypeValue::Null => "null".to_string(),
                 _ => {
-                    panic!("implementation error")
+                    panic!("dtype value is not categorical")
                 }
             };
             for (category, cat_values) in categories.iter_mut() {
@@ -143,6 +146,7 @@ impl Pipeline {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::file_reader::csv::df_from_csv; 
 
     #[test]
     fn test_pipeline_transform() {
@@ -150,10 +154,8 @@ mod tests {
         let string_encoding = StringEncoding::OneHot;
         let scalar = Scalar::Standard;
         let pipeline = Pipeline::new(string_encoding, imputer_strategy, scalar);
-        let df = DataFrame::from_csv("housing.csv", Some(10000));
+        let df = df_from_csv("housing.csv", Some(10000));
         let output_matrix = pipeline.transform(&df);
-        assert!(output_matrix.iter().all(|v| {
-             v.len() == 14
-        }));
+        assert!(output_matrix.iter().all(|v| { v.len() == 14 }));
     }
 }
