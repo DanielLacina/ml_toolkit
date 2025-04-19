@@ -35,7 +35,7 @@ impl Pipeline {
 
     pub fn transform(&self, df: &DataFrame) -> Vec<Vec<f32>> {
         let mut output_matrix = vec![vec![]; df.len()];
-        let data = df.data();
+        let data = df.data(false);
         let mut columns_to_not_scale = HashSet::new();
         for (j, (column_name, (dtype, values))) in data.iter().enumerate() {
             match dtype {
@@ -146,7 +146,7 @@ impl Pipeline {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::file_reader::csv::df_from_csv; 
+    use crate::dataframe::csv::df_from_csv;
 
     #[test]
     fn test_pipeline_transform() {

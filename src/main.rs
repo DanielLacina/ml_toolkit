@@ -1,11 +1,9 @@
+mod algorithms;
 mod dataframe;
 mod inference;
-mod algorithms;
 mod linear_algebra;
 mod pipeline;
 mod sampling;
-mod file_reader;
-
 
 fn main() {
     // let filename = "housing.csv";

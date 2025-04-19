@@ -1,3 +1,4 @@
+pub mod csv;
 pub mod dataframe;
 pub mod datatype;
 pub use dataframe::DataFrame;
