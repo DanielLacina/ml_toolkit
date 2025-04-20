@@ -109,6 +109,6 @@ mod tests {
       let test_size = 0.2; 
       let stratified_by = vec![("median_income".to_string(), 5)];
       let stratified_shuffle_split = StratifiedShuffleSplit::new(test_size, &stratified_by);
-      stratified_shuffle_split.split(&df);
+      let (train_indices, test_indices) = stratified_shuffle_split.split(&df);
    }
 }
