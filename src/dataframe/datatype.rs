@@ -36,7 +36,7 @@ impl Ord for DataTypeValue {
         }
         let current = current.unwrap();
         let other = other.unwrap();
-        if (current - other).abs() < 0.1 {
+        if (current - other).abs() < 0.0001 {
             return Ordering::Equal;
         } else if current > other {
             return Ordering::Greater;
@@ -48,6 +48,7 @@ impl Ord for DataTypeValue {
 
 impl PartialEq for DataTypeValue {
     fn eq(&self, other: &Self) -> bool {
+        // if datatype is a string
         match self {
            DataTypeValue::String(inner_a) => {
             match other {
@@ -79,7 +80,7 @@ impl PartialEq for DataTypeValue {
         }
         let current = current.unwrap();
         let other = other.unwrap();
-        if (current - other).abs() < 0.1 {
+        if (current - other).abs() < 0.0001 {
             return true;
         } else {
             return false;

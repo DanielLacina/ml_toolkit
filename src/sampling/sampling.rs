@@ -1,21 +1,103 @@
-// use crate::dataframe::DataFrame;
+use crate::dataframe::{DataFrame, DataTypeValue};
+use std::collections::HashMap;
 
-// pub struct StratifiedShuffleSplit {
-//     test_size: f32,
-//     stratified_by: Vec<String>
-// }
+pub struct StratifiedShuffleSplit {
+    test_size: f32,
+    stratified_by: Vec<(String, usize)>,
+}
 
-// impl StratifiedShuffleSplit {
-//     pub fn new(test_size: f32) -> Self {
-//         if test_size < 0.0  || test_size > 1.0 {
-//             panic!("test size must be a percentage");
-//         }
-//         Self {
-//             test_size
-//         }
-//     }
+impl StratifiedShuffleSplit {
+    pub fn new(test_size: f32, stratified_by: &Vec<(String, usize)>) -> Self {
+        if test_size < 0.0  || test_size > 1.0 {
+            panic!("test size must be a percentage");
+        }
+        Self {
+            test_size,
+            stratified_by: stratified_by.clone()
+        }
+    }
 
-//     pub fn split(&self, df: &DataFrame) {
-//         let columns = df.columns();
-//     }
-// }
+    pub fn split(&self, df: &DataFrame) -> (Vec<usize>, Vec<usize>) {
+        let mut test_indices: Vec<usize> = Vec::new();
+        let mut train_indices: Vec<usize> = Vec::new();
+        let mut bin_permutations = Vec::new();
+        for (_, num_bins) in self.stratified_by.iter() {
+            if bin_permutations.len() == 0 { 
+                for i in (0..*num_bins)  {
+                    bin_permutations.push(vec![i as u32]);
+                }
+            } else {
+                let bin_permutations_copy = bin_permutations.clone();
+                bin_permutations = Vec::new();
+                for i in (0..*num_bins) {
+                    let start = if i >= bin_permutations_copy.len() {
+                        0     
+                    } else {
+                        i
+                    };
+                    for bin in bin_permutations_copy[start..].iter() {
+                        let mut bin = bin.clone();
+                        bin.push(i as u32); 
+                        bin_permutations.push(bin);
+                    }
+                }
+            }
+        }
+        let mut bin_permutations_hashmap = HashMap::new();
+        for bin_nums in bin_permutations.into_iter() {
+            let mut bin_nums = bin_nums; 
+            bin_nums.sort();
+            bin_permutations_hashmap.insert(bin_nums, Vec::new());
+        } 
+        let mut all_bins = Vec::new(); 
+        for (column_name, num_bins) in self.stratified_by.iter() {
+            let bins = df.bins(&column_name, *num_bins);
+            if all_bins.len() == 0 {
+                for (id, _, bin_num) in bins.iter() {
+                    let id = match id {
+                        DataTypeValue::Id(inner) => {
+                            *inner
+                        }, 
+                        _ => panic!("datatype must be id")
+                    };
+                    all_bins.push((id.clone(), vec![*bin_num])); 
+                }
+            } else {
+                for (i, (_, bin_nums)) in all_bins.iter_mut().enumerate() {
+                    let (_, _, cur_bin_num) = bins[i]; 
+                    bin_nums.push(cur_bin_num);
+                }
+            }
+         } 
+         for (id, bin_nums) in all_bins.into_iter() {
+            let mut bin_nums = bin_nums;
+            bin_nums.sort();
+            let mut bin_ids = bin_permutations_hashmap.get_mut(&bin_nums).unwrap();
+            bin_ids.push(id);
+         }
+         for (_, ids) in bin_permutations_hashmap.iter() {
+            let ids_len = ids.len();
+            let train_end = (ids_len as f32 * (1.0 - self.test_size)) as usize; 
+            train_indices.extend(&ids[0..train_end]);
+            test_indices.extend(&ids[train_end..ids_len]); 
+         }
+         return (train_indices, test_indices)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::dataframe::csv::df_from_csv; 
+
+   #[test]
+   fn test_stratified_shuffle_split() {
+      let filename = "housing.csv";
+      let row_limit = 100;
+      let df = df_from_csv(filename, Some(row_limit));
+      let test_size = 0.2; 
+      let stratified_by = vec![("median_income".to_string(), 5)];
+      let stratified_shuffle_split = StratifiedShuffleSplit::new(test_size, &stratified_by);
+      stratified_shuffle_split.split(&df);
+   }
+}

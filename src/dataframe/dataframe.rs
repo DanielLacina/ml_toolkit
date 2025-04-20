@@ -1,5 +1,5 @@
 use crate::dataframe::datatype::{DataType, DataTypeValue};
-use std::collections::{HashMap, HashSet};
+use std::{collections::{HashMap, HashSet}, hash::Hash};
 
 const IDS: &str = "ids";
 
@@ -30,6 +30,7 @@ impl DataFrame {
         // column values vector must have the same length as the other
         // column values vectors to keep everything consistent 
         assert!(values.len() == self.len());
+        assert!(!(self.columns.contains_key(IDS) && column_name == IDS), "{}", format!("{} column cannot be modified", IDS));
         let header_index = self.columns.len();
         self.columns.insert(
             column_name.to_string(),
@@ -125,6 +126,31 @@ impl DataFrame {
             df.insert_column(column_name.as_str(), data, dtype);
         }
         df.update_ids();
+        return df;
+    }
+
+    fn df_from_hashmap(&self, data_hashmap: &HashMap<String, (DataType, Vec<DataTypeValue>)>, len: usize) -> DataFrame {
+        let mut df = DataFrame::new();
+        df.len = len;
+        for (column_name, (dtype, values)) in data_hashmap.iter() {
+            df.insert_column(column_name, values, dtype);
+        }  
+        df.update_ids();
+        return df;
+    } 
+
+    pub fn get_rows_as_df(&self, ids: Vec<usize>) -> DataFrame {
+        let mut data_hashmap = HashMap::new();
+        let column_names = self.columns(); 
+        for column_name in column_names.iter() {
+            let (dtype, values) = self.get_column(&column_name);
+            let mut df_values = Vec::new(); 
+            for id in ids.iter() {
+                df_values.push(values[*id].clone());
+            }
+            data_hashmap.insert(column_name.clone().clone(),(dtype.clone(), df_values)); 
+        }
+        let df = self.df_from_hashmap(&data_hashmap, ids.len());
         return df;
     }
 
@@ -506,7 +532,7 @@ mod tests {
     #[test]
     fn test_get_bins() {
         let filename = "housing.csv";
-        let row_limit = 10;
+        let row_limit = 100;
         let bins = 5;
         let bin_size = row_limit/bins; 
         let df = df_from_csv(filename, Some(row_limit));
