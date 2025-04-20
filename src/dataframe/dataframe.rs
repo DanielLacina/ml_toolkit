@@ -50,6 +50,14 @@ impl DataFrame {
 
     pub fn remove_column(&mut self, column_name: &str) {
         self.columns.remove(column_name);
+        let mut column_index = None; 
+        for (index, index_column_name) in self.index_to_column.iter() {
+            if column_name == index_column_name {
+                column_index = Some(*index)
+            }  
+        };
+        let column_index = column_index.unwrap_or_else(|| panic!("column with name {} does not have an index associated with it", column_name)); 
+        self.index_to_column.remove(&column_index);
     }
 
     fn get_column_mut(&mut self, column_name: &str) -> (&mut DataType, &mut Vec<DataTypeValue>) {
@@ -58,8 +66,11 @@ impl DataFrame {
     }
 
     pub fn get_column(&self, column_name: &str) -> (&DataType, &Vec<DataTypeValue>) {
-        let (_, dtype, values) = self.columns.get(column_name).unwrap();
-        return (dtype, values);
+        if let Some((_, dtype, values)) = self.columns.get(column_name) {
+            return (dtype, values);
+        } else {
+            panic!("dataframe has no column named {}", column_name);
+        }
     }
 
     pub fn get_column_by_index(&self, index: usize) -> (&String, &DataType, &Vec<DataTypeValue>) {
@@ -139,10 +150,13 @@ impl DataFrame {
         return df;
     } 
 
-    pub fn get_rows_as_df(&self, ids: Vec<usize>) -> DataFrame {
+    pub fn get_rows_as_df(&self, ids: &Vec<usize>) -> DataFrame {
         let mut data_hashmap = HashMap::new();
         let column_names = self.columns(); 
-        for column_name in column_names.iter() {
+        for column_name in column_names {
+            if column_name == IDS {
+                continue;
+            }
             let (dtype, values) = self.get_column(&column_name);
             let mut df_values = Vec::new(); 
             for id in ids.iter() {

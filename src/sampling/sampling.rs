@@ -11,6 +11,12 @@ impl StratifiedShuffleSplit {
         if test_size < 0.0  || test_size > 1.0 {
             panic!("test size must be a percentage");
         }
+        if stratified_by.len() == 0 {
+            panic!("must provide at least one column to stratify the samples by"); 
+        }
+        if stratified_by.iter().any(|(_, num_bins)| *num_bins == 0) {
+            panic!("cant divide data into 0 bins");
+        } 
         Self {
             test_size,
             stratified_by: stratified_by.clone()
@@ -76,10 +82,15 @@ impl StratifiedShuffleSplit {
             bin_ids.push(id);
          }
          for (_, ids) in bin_permutations_hashmap.iter() {
-            let ids_len = ids.len();
-            let train_end = (ids_len as f32 * (1.0 - self.test_size)) as usize; 
-            train_indices.extend(&ids[0..train_end]);
-            test_indices.extend(&ids[train_end..ids_len]); 
+            let divisor = (1.0/self.test_size) as usize;  
+            for id in ids {
+                if id % divisor == 0 {
+                   test_indices.push(*id)
+                }  
+                else {
+                    train_indices.push(*id);
+                }
+            }
          }
          return (train_indices, test_indices)
     }

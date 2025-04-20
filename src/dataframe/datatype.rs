@@ -36,13 +36,7 @@ impl Ord for DataTypeValue {
         }
         let current = current.unwrap();
         let other = other.unwrap();
-        if (current - other).abs() < 0.0001 {
-            return Ordering::Equal;
-        } else if current > other {
-            return Ordering::Greater;
-        } else {
-            return Ordering::Less;
-        }
+        current.total_cmp(&other)
     }
 }
 
@@ -80,7 +74,7 @@ impl PartialEq for DataTypeValue {
         }
         let current = current.unwrap();
         let other = other.unwrap();
-        if (current - other).abs() < 0.0001 {
+        if (current - other).abs() <= 0.0001 {
             return true;
         } else {
             return false;
