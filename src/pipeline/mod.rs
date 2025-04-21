@@ -1,2 +1,4 @@
+pub mod encoders;
 pub mod pipeline;
-pub mod one_hot_encoder;
+pub mod scalars;
+pub mod imputers;

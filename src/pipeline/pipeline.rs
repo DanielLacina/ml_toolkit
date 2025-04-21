@@ -1,116 +1,96 @@
 use crate::dataframe::{DataFrame, DataType, DataTypeValue};
+use super::{imputers::imputer::Imputer};
+use super::scalars::scalar::Scalar;
+use super::encoders::encoder::Encoder;
 
-pub enum ImputerStrategy {
-    Median,
+
+pub trait Pipeline {
+    fn transform(&self, df: &DataFrame, column_names: &Vec<String>) -> DataFrame; 
 }
 
-pub enum Scalar {
-    None,
-    Standard,
+pub struct NumericalPipeline {
+    imputer: Imputer, 
+    scalar: Option<Box<dyn Scalar>>
 }
 
-pub struct Pipeline {
-    imputer_strategy: ImputerStrategy,
-    scalar: Scalar,
+impl NumericalPipeline {
+    pub fn new(imputer: Imputer, scalar: Option<Box<dyn Scalar>>) -> Self {
+          return  Self {
+            imputer,
+            scalar
+          }; 
+    }
 }
 
-impl Pipeline {
-    pub fn new(
-        imputer_strategy: ImputerStrategy,
-        scalar: Scalar,
-    ) -> Self {
+impl Pipeline for NumericalPipeline {
+    fn transform(&self, df: &DataFrame, column_names: &Vec<String>) -> DataFrame {
+         let df_filled = self.imputer.fill(df, column_names);
+         if let Some(scalar) = self.scalar.as_ref() {
+             let df_scaled = scalar.scale_data(&df_filled, column_names);      
+             return df_scaled;
+         } else {
+            return df_filled;
+         }
+    } 
+}
+
+pub struct CategoricalPipeline {
+    encoder: Box<dyn Encoder>  
+}
+
+impl CategoricalPipeline {
+    pub fn new(encoder: Box<dyn Encoder>) -> Self {
+         return Self {
+             encoder
+         };
+    }
+}
+
+impl Pipeline for CategoricalPipeline {
+    fn transform(&self, df: &DataFrame, column_names: &Vec<String>) -> DataFrame {
+         let mut df_encoded = self.encoder.apply_encoding(df, column_names); 
+         for column_name in column_names {
+            df_encoded.remove_column(column_name);
+         }
+         return df_encoded;
+    }
+}
+
+pub struct ColumnTransformer {
+    num_pipeline: NumericalPipeline,
+    categorical_pipeline: CategoricalPipeline
+}
+
+impl ColumnTransformer {
+    pub fn new(num_pipeline: NumericalPipeline, categorical_pipeline: CategoricalPipeline) -> Self {
         Self {
-            imputer_strategy,
-            scalar,
+            num_pipeline,
+            categorical_pipeline
         }
     }
-
     pub fn transform(&self, df: &DataFrame) -> Vec<Vec<f32>> {
-        let mut output_matrix = vec![vec![]; df.len()];
-        let column_names = df.columns(); 
-        let data = df.data(false);
-        for (j, column_name) in column_names.iter().enumerate() {
-            if column_name.as_str() == "ids" {
-                continue;
-            }
-            let (dtype, values) = data.get(column_name).unwrap();   
-            match dtype {
-                DataType::Float => {
-                    let median = df.median(column_name);
-                    for (i, value) in values.iter().enumerate() {
-                        match value {
-                            DataTypeValue::Float(inner) => {
-                                output_matrix[i].push(*inner);
-                            }
-                            DataTypeValue::Null => match self.imputer_strategy {
-                                ImputerStrategy::Median => {
-                                    output_matrix[i].push(median);
-                                }
-                            },
-                            _ => panic!("value type is inconsistent with column datatype header"),
-                        }
-                    }
-                }
-                DataType::String => panic!("string data must be encoded"),
-                _ => {
-                    panic!("only columns with column datatype header of float can be processed")
-                }
-            }
-        }
-        self.scale_data(&mut output_matrix);
+        let categorical_columns = df.categorical_columns().into_iter().map(|column_name| column_name.clone()).collect();
+        let df_transformed = self.categorical_pipeline.transform(df, &categorical_columns);
+        let numeric_columns = df.numeric_columns().into_iter().map(|column_name| column_name.clone()).collect();
+        let df_transformed = self.num_pipeline.transform(&df_transformed, &numeric_columns);
+        let output_matrix = df_transformed.as_matrix( false);
         return output_matrix;
-    }
-
-
-    fn scale_data(&self, matrix: &mut Vec<Vec<f32>>) {
-        match self.scalar {
-            Scalar::Standard => {
-                for i in (0..matrix[0].len()) {
-                    let column_vector = matrix.iter().map(|v| v[i]).collect();
-                    let mean = self.mean(&column_vector);
-                    let std = self.std(&column_vector, Some(mean));
-                    for row_vector in matrix.iter_mut() {
-                        row_vector[i] = (row_vector[i] - mean) / std;
-                    }
-                }
-            }
-            Scalar::None => {}
-        }
-    }
-
-    fn mean(&self, column_vector: &Vec<f32>) -> f32 {
-        let mut sum = 0.0;
-        for value in column_vector {
-            sum += *value;
-        }
-        return sum / column_vector.len() as f32;
-    }
-
-    fn std(&self, column_vector: &Vec<f32>, mean: Option<f32>) -> f32 {
-        let mean = if let Some(mean) = mean {
-            mean
-        } else {
-            self.mean(column_vector)
-        };
-        let mut sum = 0.0;
-        for value in column_vector {
-            sum += (value - mean).powf(2.0);
-        }
-        let std = f32::sqrt(sum / (column_vector.len() - 1) as f32);
-        return std;
     }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::dataframe::csv::df_from_csv;
+    use crate::{dataframe::csv::df_from_csv, pipeline::{encoders::one_hot_encoder::{self, OneHotEncoder}, scalars::standard_scalar::StandardScalar, imputers::imputer::{Imputer, ImputerStrategy}}};
 
     #[test]
     fn test_pipeline_transform() {
-        let imputer_strategy = ImputerStrategy::Median;
-        let scalar = Scalar::Standard;
-        let pipeline = Pipeline::new( imputer_strategy, scalar);
+        let encoder = OneHotEncoder::new();
+        let scalar = StandardScalar::new();
+        let imputer = Imputer::new(&ImputerStrategy::Median);
+        let categorical_pipeline = CategoricalPipeline::new(Box::new(encoder));
+        let numeric_pipeline = NumericalPipeline::new(imputer, Some(Box::new(scalar)));
+        let pipeline = ColumnTransformer::new(numeric_pipeline, categorical_pipeline);
         let df = df_from_csv("housing.csv", Some(10000));
         let output_matrix = pipeline.transform(&df);
         assert!(output_matrix.iter().all(|v| { v.len() == 14 }));

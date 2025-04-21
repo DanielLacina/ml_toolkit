@@ -1,7 +1,6 @@
 use crate::dataframe::datatype::{DataType, DataTypeValue};
-use std::collections::{HashMap, HashSet};
+use std::collections::HashMap;
 
-const IDS: &str = "ids";
 
 #[derive(Clone)]
 pub struct DataFrame {
@@ -17,8 +16,12 @@ impl DataFrame {
             columns: HashMap::new(),
             len: 0,
         };
-        df.insert_column(IDS, &Vec::new(), &DataType::Id);
+        df.insert_column(DataFrame::id_column(), &Vec::new(), &DataType::Id);
         return df;
+    }
+
+    pub fn id_column() -> &'static str {
+        return "ids";
     }
 
     pub fn insert_column(
@@ -28,9 +31,13 @@ impl DataFrame {
         dtype: &DataType,
     ) {
         // column values vector must have the same length as the other
-        // column values vectors to keep everything consistent 
+        // column values vectors to keep everything consistent
         assert!(values.len() == self.len());
-        assert!(!(self.columns.contains_key(IDS) && column_name == IDS), "{}", format!("{} column cannot be modified", IDS));
+        assert!(
+            !(self.columns.contains_key(DataFrame::id_column()) && column_name == DataFrame::id_column()),
+            "{}",
+            format!("{} column cannot be modified", DataFrame::id_column())
+        );
         let header_index = self.columns.len();
         self.columns.insert(
             column_name.to_string(),
@@ -42,26 +49,50 @@ impl DataFrame {
 
     fn update_ids(&mut self) {
         let len = self.len;
-        let (_, values) = self.get_column_mut(IDS);
+        let (_, values) = self.get_column_mut(DataFrame::id_column());
         for i in (values.len()..len) {
             values.push(DataTypeValue::Id(i));
         }
     }
 
+    pub fn modify_cell(&mut self, column_name: &str, row_index: usize, new_value: DataTypeValue) {
+        let (dtype, values) = self.get_column_mut(column_name);
+        match dtype {
+            DataType::Float => {
+                assert!(matches!(new_value, DataTypeValue::Float(_)) || matches!(new_value, DataTypeValue::Null));
+            },
+            DataType::String => {
+                assert!(matches!(new_value, DataTypeValue::String(_)) || matches!(new_value, DataTypeValue::Null));
+            }, 
+            _ => panic!("column {} has a datatype {:?} that cant be modified", column_name, dtype) 
+        }
+        values[row_index] = new_value; 
+    } 
+
+    pub fn get_cell_value(&self, column_name: &str, row_index: usize) -> &DataTypeValue {
+        let (_, values) = self.get_column(column_name);
+        return &values[row_index]; 
+    } 
+
     pub fn remove_column(&mut self, column_name: &str) {
         self.columns.remove(column_name);
-        let mut column_index = None; 
+        let mut column_index = None;
         for (index, index_column_name) in self.index_to_column.iter() {
             if column_name == index_column_name {
                 column_index = Some(*index)
-            }  
-        };
-        let column_index = column_index.unwrap_or_else(|| panic!("column with name {} does not have an index associated with it", column_name)); 
+            }
+        }
+        let column_index = column_index.unwrap_or_else(|| {
+            panic!(
+                "column with name {} does not have an index associated with it",
+                column_name
+            )
+        });
         self.index_to_column.remove(&column_index);
         for i in ((column_index + 1)..self.index_to_column.len() + 1) {
-            let column_name = self.index_to_column.remove(&i).unwrap(); 
+            let column_name = self.index_to_column.remove(&i).unwrap();
             self.index_to_column.insert(i - 1, column_name);
-        } 
+        }
     }
 
     fn get_column_mut(&mut self, column_name: &str) -> (&mut DataType, &mut Vec<DataTypeValue>) {
@@ -84,7 +115,10 @@ impl DataFrame {
     }
 
     pub fn insert_row(&mut self, data_hashmap: &HashMap<String, DataTypeValue>) {
-        assert!(data_hashmap.len() >= self.columns.len() - 1 && data_hashmap.len() <= self.columns.len());
+        assert!(
+            data_hashmap.len() >= self.columns.len() - 1
+                && data_hashmap.len() <= self.columns.len()
+        );
         for (column_name, value) in data_hashmap.iter() {
             let (dtype, data) = self.get_column_mut(column_name);
             let right_dtype = match dtype {
@@ -120,7 +154,7 @@ impl DataFrame {
             match value {
                 DataTypeValue::Float(inner) => {
                     *value = DataTypeValue::String(inner.to_string());
-                },
+                }
                 _ => {}
             }
         }
@@ -129,8 +163,7 @@ impl DataFrame {
 
     pub fn columns(&self) -> Vec<&String> {
         (0..self.index_to_column.len())
-            .map(|i| {
-                self.index_to_column.get(&i).unwrap()})
+            .map(|i| self.index_to_column.get(&i).unwrap())
             .collect()
     }
 
@@ -138,7 +171,7 @@ impl DataFrame {
         let mut df = DataFrame::new();
         df.len = self.len();
         for column_name in columns {
-            if column_name == IDS {
+            if column_name == DataFrame::id_column() {
                 continue;
             }
             let (dtype, data) = self.get_column(column_name);
@@ -148,37 +181,45 @@ impl DataFrame {
         return df;
     }
 
-    fn df_from_hashmap(&self, data_hashmap: &HashMap<String, (DataType, Vec<DataTypeValue>)>, len: usize) -> DataFrame {
+    fn df_from_hashmap(
+        &self,
+        data_hashmap: &HashMap<String, (DataType, Vec<DataTypeValue>)>,
+        len: usize,
+    ) -> DataFrame {
         let mut df = DataFrame::new();
         df.len = len;
-        let column_names: Vec<String> = self.columns().into_iter().filter_map(|column_name| {
-            if data_hashmap.contains_key(column_name.as_str()) {
-                Some(column_name.clone())
-            }  else {
-                None
-            }
-        }).collect();
+        let column_names: Vec<String> = self
+            .columns()
+            .into_iter()
+            .filter_map(|column_name| {
+                if data_hashmap.contains_key(column_name.as_str()) {
+                    Some(column_name.clone())
+                } else {
+                    None
+                }
+            })
+            .collect();
         for column_name in column_names {
             let (dtype, values) = data_hashmap.get(&column_name).unwrap();
             df.insert_column(&column_name, values, dtype);
-        }  
+        }
         df.update_ids();
         return df;
-    } 
+    }
 
     pub fn get_rows_as_df(&self, ids: &Vec<usize>) -> DataFrame {
         let mut data_hashmap = HashMap::new();
-        let column_names = self.columns(); 
+        let column_names = self.columns();
         for column_name in column_names {
-            if column_name == IDS {
+            if column_name == DataFrame::id_column() {
                 continue;
             }
             let (dtype, values) = self.get_column(&column_name);
-            let mut df_values = Vec::new(); 
+            let mut df_values = Vec::new();
             for id in ids.iter() {
                 df_values.push(values[*id].clone());
             }
-            data_hashmap.insert(column_name.clone().clone(),(dtype.clone(), df_values)); 
+            data_hashmap.insert(column_name.clone().clone(), (dtype.clone(), df_values));
         }
         let df = self.df_from_hashmap(&data_hashmap, ids.len());
         return df;
@@ -190,7 +231,7 @@ impl DataFrame {
         num_bins: usize,
     ) -> Vec<(DataTypeValue, DataTypeValue, u32)> {
         let (_, data) = self.get_column(column_name);
-        let (_, ids) = self.get_column(IDS);
+        let (_, ids) = self.get_column(DataFrame::id_column());
         let mut zipped: Vec<(DataTypeValue, DataTypeValue)> =
             ids.clone().into_iter().zip(data.clone()).collect();
         zipped.sort_by(|(_, a), (_, b)| a.cmp(b));
@@ -205,15 +246,55 @@ impl DataFrame {
 
     pub fn data(&self, include_ids: bool) -> HashMap<&String, (&DataType, &Vec<DataTypeValue>)> {
         let mut data_hashmap = HashMap::new();
-        let column_names = self.columns(); 
-        for  column_name in column_names {
-            if column_name == IDS && !include_ids {
+        let column_names = self.columns();
+        for column_name in column_names {
+            if column_name == DataFrame::id_column() && !include_ids {
                 continue;
             }
             let (dtype, data) = self.get_column(column_name);
             data_hashmap.insert(column_name, (dtype, data));
         }
         return data_hashmap;
+    }
+
+    pub fn as_matrix(&self, include_ids: bool) -> Vec<Vec<f32>> {
+        let mut output_matrix = vec![vec![]; self.len()];
+        let column_names = self.columns();
+        for column_name in column_names {
+            let (dtype, values) = self.get_column(column_name);
+            match dtype {
+                DataType::Float => {
+                    for (i, value) in values.iter().enumerate() {
+                        match value {
+                            DataTypeValue::Float(inner) => {
+                                output_matrix[i].push(*inner);
+                            }
+                            DataTypeValue::Null => {
+                                panic!("matrix cant have any null values")
+                            },
+                            _ => panic!("value type is inconsistent with column datatype header"),
+                        }
+                    }
+                },
+                DataType::Id => {
+                    if include_ids {
+                        for (i, value) in values.iter().enumerate() {
+                            match value {
+                            DataTypeValue::Id(inner) => {
+                                output_matrix[i].push(*inner as f32);
+                            }
+                            _ => panic!("id column must be id column type (implementation error)"),
+                        }
+                        }
+                    }
+                }, 
+                DataType::String => panic!("string data must be encoded"),
+                _ => {
+                    panic!("only columns with column datatype header of float can be processed")
+                }
+            }
+        }
+        return output_matrix;
     }
 
     pub fn median(&self, column_name: &str) -> f32 {
@@ -274,6 +355,32 @@ impl DataFrame {
         return std;
     }
 
+    pub fn categorical_columns(&self) -> Vec<&String> {
+        let column_names: Vec<&String> = self.columns().into_iter().filter_map(|column_name| {
+            let (dtype, _) = self.get_column(column_name);
+            match dtype {
+                DataType::String => {
+                    Some(column_name)
+                },
+                _ => None
+            }
+        }).collect();
+        return column_names;
+    }
+
+    pub fn numeric_columns(&self) -> Vec<&String> {
+        let column_names: Vec<&String> = self.columns().into_iter().filter_map(|column_name| {
+            let (dtype, _) = self.get_column(column_name);
+            match dtype {
+                DataType::Float => {
+                    Some(column_name)
+                },
+                _ => None
+            }
+        }).collect();
+        return column_names;
+    }
+
     pub fn len(&self) -> usize {
         self.len
     }
@@ -294,7 +401,7 @@ mod tests {
         assert!(
             column_names
                 == vec![
-                    IDS,
+                    DataFrame::id_column(),
                     "longitude",
                     "latitude",
                     "housing_median_age",
@@ -308,22 +415,15 @@ mod tests {
                 ]
         );
 
-        assert!(
-           !column_names 
-                .iter().any(|column_name| {
-                   let (_, data) = df.get_column(column_name);
-                 data.iter()
+        assert!(!column_names.iter().any(|column_name| {
+            let (_, data) = df.get_column(column_name);
+            data.iter()
                 .all(|value| matches!(value, DataTypeValue::Null))
-                }) 
-        ) ;
-        assert!(
-           column_names 
-                .iter()
-                .all(|column_name| 
-                {    
-                    let (_, data) = df.get_column(column_name);
-                    data.len() == row_limit })
-        );
+        }));
+        assert!(column_names.iter().all(|column_name| {
+            let (_, data) = df.get_column(column_name);
+            data.len() == row_limit
+        }));
         assert!(column_names.iter().all(|column_name| {
             let (dtype, data) = df.get_column(column_name);
             match dtype {
@@ -340,13 +440,13 @@ mod tests {
                 _ => true,
             }
         }));
-         assert!(column_names.iter().all(|column_name| {
+        assert!(column_names.iter().all(|column_name| {
             let (dtype, _) = df.get_column(column_name);
             if column_name.as_str() == "ocean_proximity" {
                 matches!(dtype, DataType::String)
-            } else if column_name.as_str() == IDS {
-                matches!(dtype, DataType::Id)   
-            }  else {
+            } else if column_name.as_str() == DataFrame::id_column() {
+                matches!(dtype, DataType::Id)
+            } else {
                 matches!(dtype, DataType::Float)
             }
         }));
@@ -357,14 +457,18 @@ mod tests {
         let filename = "housing.csv";
         let row_limit = 10;
         let df = df_from_csv(filename, Some(row_limit));
-        let columns = vec!["median_income".to_string(), "households".to_string(), "total_bedrooms".to_string()]; 
-        let new_df = df.get_columns_as_df(&columns);   
+        let columns = vec![
+            "median_income".to_string(),
+            "households".to_string(),
+            "total_bedrooms".to_string(),
+        ];
+        let new_df = df.get_columns_as_df(&columns);
         assert!(new_df.columns().len() == columns.len() + 1);
         assert!(columns.iter().all(|column_name| {
             let (_, values) = new_df.get_column(column_name);
             values.len() == row_limit
         }));
-        let (_, values) = new_df.get_column(IDS); 
+        let (_, values) = new_df.get_column(DataFrame::id_column());
         assert!(values.len() == row_limit);
     }
 
@@ -402,98 +506,100 @@ mod tests {
     fn test_insert_column_invalid_values_length() {
         let mut df = DataFrame::new();
         let column_name = "ocean_proximity";
-        let values = vec!["near ocean", "far from ocean"].iter().map(|value| DataTypeValue::String(value.to_string())).collect();
+        let values = vec!["near ocean", "far from ocean"]
+            .iter()
+            .map(|value| DataTypeValue::String(value.to_string()))
+            .collect();
         let dtype = DataType::String;
         df.insert_column(column_name, &values, &dtype);
-     }
+    }
 
-     #[test]
-     fn test_insert_column() {
+    #[test]
+    fn test_insert_column() {
         let mut df = DataFrame::new();
         let column_name = "ocean_proximity";
         let dtype = DataType::String;
         df.insert_column(column_name, &Vec::new(), &dtype);
-        let (column_dtype, column_values) = df.get_column(column_name); 
+        let (column_dtype, column_values) = df.get_column(column_name);
         assert!(matches!(column_dtype, dtype));
         assert!(column_values.len() == 0);
-     }
+    }
 
-     #[test]
-     fn test_get_columns() {
+    #[test]
+    fn test_get_columns() {
         let filename = "housing.csv";
         let row_limit = 10;
         let df = df_from_csv(filename, Some(row_limit));
-        let (column_dtype, column_values) = df.get_column("ocean_proximity");  
+        let (column_dtype, column_values) = df.get_column("ocean_proximity");
         assert!(column_values.len() == row_limit);
         assert!(matches!(column_dtype, DataType::String));
-     }
+    }
 
-     #[test]
-     fn test_convert_column_values_to_string() {
+    #[test]
+    fn test_convert_column_values_to_string() {
         let filename = "housing.csv";
         let row_limit = 10;
         let mut df = df_from_csv(filename, Some(row_limit));
         let column_name = "median_income";
-        df.convert_column_values_to_string(column_name);        
+        df.convert_column_values_to_string(column_name);
         let (dtype, values) = df.get_column(column_name);
         assert!(matches!(dtype, DataType::String));
         assert!(values.iter().all(|value| {
-             matches!(value, DataTypeValue::String(_)) || matches!(value, DataTypeValue::Null) 
+            matches!(value, DataTypeValue::String(_)) || matches!(value, DataTypeValue::Null)
         }));
-     }
+    }
 
-     #[test]
-     #[should_panic]
-     fn test_insert_row_invalid_column() {
+    #[test]
+    #[should_panic]
+    fn test_insert_row_invalid_column() {
         let mut df = DataFrame::new();
         df.insert_column("income", &Vec::new(), &DataType::Float);
         let mut data_hashmap = HashMap::new();
-        data_hashmap.insert("not income".to_string(), DataTypeValue::Float(10.0)); 
+        data_hashmap.insert("not income".to_string(), DataTypeValue::Float(10.0));
         df.insert_row(&data_hashmap);
-     }
+    }
 
-     #[test]
-     #[should_panic]
-     fn test_insert_row_not_specifying_all_columns() {
+    #[test]
+    #[should_panic]
+    fn test_insert_row_not_specifying_all_columns() {
         let mut df = DataFrame::new();
         df.insert_column("income", &Vec::new(), &DataType::Float);
         df.insert_column("location", &Vec::new(), &DataType::String);
         let mut data_hashmap = HashMap::new();
-        data_hashmap.insert("income".to_string(), DataTypeValue::Float(10.0)); 
+        data_hashmap.insert("income".to_string(), DataTypeValue::Float(10.0));
         df.insert_row(&data_hashmap);
-     }
+    }
 
-     #[test]
-     fn test_insert_row() {
+    #[test]
+    fn test_insert_row() {
         let mut df = DataFrame::new();
         df.insert_column("income", &Vec::new(), &DataType::Float);
         df.insert_column("location", &Vec::new(), &DataType::String);
         let mut data_hashmap = HashMap::new();
-        let income = DataTypeValue::Float(10.0); 
+        let income = DataTypeValue::Float(10.0);
         let location = DataTypeValue::String("Washington".to_string());
-        data_hashmap.insert("income".to_string(), income.clone()); 
+        data_hashmap.insert("income".to_string(), income.clone());
         data_hashmap.insert("location".to_string(), location.clone());
         df.insert_row(&data_hashmap);
         assert!(data_hashmap.iter().all(|(column_name, value)| {
-            let (_, values) = df.get_column(column_name);  
-            *values == vec![value.clone()] 
+            let (_, values) = df.get_column(column_name);
+            *values == vec![value.clone()]
         }));
-     }
+    }
 
-     #[test]
-     fn test_get_columns_by_index() {
+    #[test]
+    fn test_get_columns_by_index() {
         let filename = "housing.csv";
         let row_limit = 10;
         let df = df_from_csv(filename, Some(row_limit));
-        // columns ordered by index 
-        let columns = df.columns(); 
-        let (dtype, _) = df.get_column(columns[0]); 
-        let (column_name, column_dtype, column_values) = df.get_column_by_index(0);  
+        // columns ordered by index
+        let columns = df.columns();
+        let (dtype, _) = df.get_column(columns[0]);
+        let (column_name, column_dtype, column_values) = df.get_column_by_index(0);
         assert!(column_values.len() == row_limit);
         assert!(matches!(column_dtype, dtype));
         assert!(column_name == columns[0]);
-     }
-
+    }
 
     #[test]
     fn test_get_mean() {
@@ -565,20 +671,21 @@ mod tests {
         let filename = "housing.csv";
         let row_limit = 100;
         let bins = 5;
-        let bin_size = row_limit/bins; 
+        let bin_size = row_limit / bins;
         let df = df_from_csv(filename, Some(row_limit));
         let mut bins = df.bins("population", bins);
-        bins.sort_by(|(_, _, a), (_, _, b)| a.cmp(b)); 
+        bins.sort_by(|(_, _, a), (_, _, b)| a.cmp(b));
         assert!(bins.iter().enumerate().all(|(i, (_, a_value, bin_value))| {
-             let bin_row_count_by_bin = i/(*bin_value as usize + 1); 
-             let bin_cmp_start = (i as i32 - bin_row_count_by_bin as i32 - bin_size as i32).max(0) as usize;
-             let bin_cmp_end = i - bin_row_count_by_bin; 
-             for (_, b_value, _) in bins[bin_cmp_start..bin_cmp_end].iter() {
+            let bin_row_count_by_bin = i / (*bin_value as usize + 1);
+            let bin_cmp_start =
+                (i as i32 - bin_row_count_by_bin as i32 - bin_size as i32).max(0) as usize;
+            let bin_cmp_end = i - bin_row_count_by_bin;
+            for (_, b_value, _) in bins[bin_cmp_start..bin_cmp_end].iter() {
                 if !(a_value >= b_value) {
                     return false;
                 }
-             }  
-             true 
+            }
+            true
         }));
     }
 }
