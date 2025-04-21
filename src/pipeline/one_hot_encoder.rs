@@ -3,16 +3,18 @@ use std::collections::HashMap;
 
 
 
-pub fn df_with_one_hot_encoding(df: &DataFrame, column_name: &str) -> DataFrame {
-    let (_, values) = df.get_column(column_name);
-    let categorical_values = extract_categorical_values(values);
-    let mut categories = categorical_values.iter().map(|(category, _)| category.clone()).collect::<Vec<String>>();  
-    categories.sort();
-    let columns_of_new_df: Vec<String> = df.columns().into_iter().filter(|col_name| col_name.as_str() != column_name).map(|col_name| col_name.clone()).collect();     
+pub fn df_with_one_hot_encoding(df: &DataFrame, column_names: &Vec<String>) -> DataFrame {
+    let columns_of_new_df: Vec<String> = df.columns().into_iter().filter(|col_name| !column_names.contains(col_name) ).map(|col_name| col_name.clone()).collect();     
     let mut df_with_one_hot_encoding = df.get_columns_as_df(&columns_of_new_df); 
-    for category in categories.iter() {
-        let cat_values = categorical_values.get(category).unwrap();
-        df_with_one_hot_encoding.insert_column(category, cat_values, &DataType::Float);         
+    for column_name in column_names {
+        let (_, values) = df.get_column(column_name);
+        let categorical_values = extract_categorical_values(values);
+        let mut categories = categorical_values.iter().map(|(category, _)| category.clone()).collect::<Vec<String>>();  
+        categories.sort();
+        for category in categories.iter() {
+            let cat_values = categorical_values.get(category).unwrap();
+            df_with_one_hot_encoding.insert_column(category, cat_values, &DataType::Float);         
+        }
     }
     return df_with_one_hot_encoding;
 }
@@ -51,9 +53,10 @@ mod tests {
     #[test]
     fn test_df_with_one_hot_encoding() {
         let filename = "housing.csv";
-        let row_limit = 10;
+        let row_limit = 10000;
         let df = df_from_csv(filename, Some(row_limit));
-        let df_with_one_hot_encoding = df_with_one_hot_encoding(&df, "ocean_proximity"); 
-        println!("{:?}", df_with_one_hot_encoding.data(false));
+        let categorical_columns= vec!["ocean_proximity".to_string()]; 
+        let df_with_one_hot_encoding = df_with_one_hot_encoding(&df, &categorical_columns); 
+        println!("{:?}", df_with_one_hot_encoding.columns());
     }
 }

@@ -1,12 +1,7 @@
 use crate::dataframe::{DataFrame, DataType, DataTypeValue};
-use std::collections::{HashMap, HashSet};
 
 pub enum ImputerStrategy {
     Median,
-}
-
-pub enum StringEncoding {
-    OneHot,
 }
 
 pub enum Scalar {
@@ -15,19 +10,16 @@ pub enum Scalar {
 }
 
 pub struct Pipeline {
-    string_encoding: StringEncoding,
     imputer_strategy: ImputerStrategy,
     scalar: Scalar,
 }
 
 impl Pipeline {
     pub fn new(
-        string_encoding: StringEncoding,
         imputer_strategy: ImputerStrategy,
         scalar: Scalar,
     ) -> Self {
         Self {
-            string_encoding,
             imputer_strategy,
             scalar,
         }
@@ -37,7 +29,6 @@ impl Pipeline {
         let mut output_matrix = vec![vec![]; df.len()];
         let column_names = df.columns(); 
         let data = df.data(false);
-        let mut columns_to_not_scale = HashSet::new();
         for (j, column_name) in column_names.iter().enumerate() {
             if column_name.as_str() == "ids" {
                 continue;
@@ -56,66 +47,25 @@ impl Pipeline {
                                     output_matrix[i].push(median);
                                 }
                             },
-                            _ => break,
+                            _ => panic!("value type is inconsistent with column datatype header"),
                         }
                     }
                 }
-                DataType::String => match self.string_encoding {
-                    StringEncoding::OneHot => {
-                        let categorical_values = self.extract_categorical_values(values);
-                        let mut categories = categorical_values.iter().map(|(category, _)| category.clone()).collect::<Vec<String>>();  
-                        categories.sort();
-                        for category in categories.iter() {
-                            let cat_values = categorical_values.get(category).unwrap();
-                            for (i, cat_value) in cat_values.iter().enumerate() {
-                                output_matrix[i].push(*cat_value);
-                            }
-                        }
-                        columns_to_not_scale.insert(j);
-                    }
-                },
+                DataType::String => panic!("string data must be encoded"),
                 _ => {
-                    break;
+                    panic!("only columns with column datatype header of float can be processed")
                 }
             }
         }
-        self.scale_data(&mut output_matrix, &columns_to_not_scale);
+        self.scale_data(&mut output_matrix);
         return output_matrix;
     }
 
-    fn extract_categorical_values(&self, values: &Vec<DataTypeValue>) -> HashMap<String, Vec<f32>> {
-        let mut categories: HashMap<String, Vec<f32>> = HashMap::new();
-        for (i, value) in values.iter().enumerate() {
-            let inner = match value {
-                DataTypeValue::String(inner) => inner.clone(),
-                DataTypeValue::Null => "null".to_string(),
-                _ => {
-                    panic!("dtype value is not categorical")
-                }
-            };
-            for (category, cat_values) in categories.iter_mut() {
-                if *category == *inner {
-                    cat_values.push(1.0);
-                } else {
-                    cat_values.push(0.0);
-                }
-            }
-            if !categories.contains_key(inner.as_str()) {
-                let mut cat_values = vec![0.0; i];
-                cat_values.push(1.0);
-                categories.insert(inner.clone(), cat_values);
-            }
-        }
-        return categories;
-    }
 
-    fn scale_data(&self, matrix: &mut Vec<Vec<f32>>, exclude: &HashSet<usize>) {
+    fn scale_data(&self, matrix: &mut Vec<Vec<f32>>) {
         match self.scalar {
             Scalar::Standard => {
                 for i in (0..matrix[0].len()) {
-                    if exclude.contains(&i) {
-                        continue;
-                    }
                     let column_vector = matrix.iter().map(|v| v[i]).collect();
                     let mean = self.mean(&column_vector);
                     let std = self.std(&column_vector, Some(mean));
@@ -159,9 +109,8 @@ mod tests {
     #[test]
     fn test_pipeline_transform() {
         let imputer_strategy = ImputerStrategy::Median;
-        let string_encoding = StringEncoding::OneHot;
         let scalar = Scalar::Standard;
-        let pipeline = Pipeline::new(string_encoding, imputer_strategy, scalar);
+        let pipeline = Pipeline::new( imputer_strategy, scalar);
         let df = df_from_csv("housing.csv", Some(10000));
         let output_matrix = pipeline.transform(&df);
         assert!(output_matrix.iter().all(|v| { v.len() == 14 }));
