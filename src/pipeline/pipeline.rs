@@ -35,9 +35,14 @@ impl Pipeline {
 
     pub fn transform(&self, df: &DataFrame) -> Vec<Vec<f32>> {
         let mut output_matrix = vec![vec![]; df.len()];
+        let column_names = df.columns(); 
         let data = df.data(false);
         let mut columns_to_not_scale = HashSet::new();
-        for (j, (column_name, (dtype, values))) in data.iter().enumerate() {
+        for (j, column_name) in column_names.iter().enumerate() {
+            if column_name.as_str() == "ids" {
+                continue;
+            }
+            let (dtype, values) = data.get(column_name).unwrap();   
             match dtype {
                 DataType::Float => {
                     let median = df.median(column_name);
@@ -58,7 +63,10 @@ impl Pipeline {
                 DataType::String => match self.string_encoding {
                     StringEncoding::OneHot => {
                         let categorical_values = self.extract_categorical_values(values);
-                        for (_, cat_values) in categorical_values.iter() {
+                        let mut categories = categorical_values.iter().map(|(category, _)| category.clone()).collect::<Vec<String>>();  
+                        categories.sort();
+                        for category in categories.iter() {
+                            let cat_values = categorical_values.get(category).unwrap();
                             for (i, cat_value) in cat_values.iter().enumerate() {
                                 output_matrix[i].push(*cat_value);
                             }

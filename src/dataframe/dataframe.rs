@@ -1,5 +1,5 @@
 use crate::dataframe::datatype::{DataType, DataTypeValue};
-use std::{collections::{HashMap, HashSet}, hash::Hash};
+use std::collections::{HashMap, HashSet};
 
 const IDS: &str = "ids";
 
@@ -58,6 +58,10 @@ impl DataFrame {
         };
         let column_index = column_index.unwrap_or_else(|| panic!("column with name {} does not have an index associated with it", column_name)); 
         self.index_to_column.remove(&column_index);
+        for i in ((column_index + 1)..self.index_to_column.len() + 1) {
+            let column_name = self.index_to_column.remove(&i).unwrap(); 
+            self.index_to_column.insert(i - 1, column_name);
+        } 
     }
 
     fn get_column_mut(&mut self, column_name: &str) -> (&mut DataType, &mut Vec<DataTypeValue>) {
@@ -125,7 +129,8 @@ impl DataFrame {
 
     pub fn columns(&self) -> Vec<&String> {
         (0..self.index_to_column.len())
-            .map(|i| self.index_to_column.get(&i).unwrap())
+            .map(|i| {
+                self.index_to_column.get(&i).unwrap()})
             .collect()
     }
 
@@ -143,8 +148,16 @@ impl DataFrame {
     fn df_from_hashmap(&self, data_hashmap: &HashMap<String, (DataType, Vec<DataTypeValue>)>, len: usize) -> DataFrame {
         let mut df = DataFrame::new();
         df.len = len;
-        for (column_name, (dtype, values)) in data_hashmap.iter() {
-            df.insert_column(column_name, values, dtype);
+        let column_names: Vec<String> = self.columns().into_iter().filter_map(|column_name| {
+            if data_hashmap.contains_key(column_name.as_str()) {
+                Some(column_name.clone())
+            }  else {
+                None
+            }
+        }).collect();
+        for column_name in column_names {
+            let (dtype, values) = data_hashmap.get(&column_name).unwrap();
+            df.insert_column(&column_name, values, dtype);
         }  
         df.update_ids();
         return df;
@@ -189,7 +202,8 @@ impl DataFrame {
 
     pub fn data(&self, include_ids: bool) -> HashMap<&String, (&DataType, &Vec<DataTypeValue>)> {
         let mut data_hashmap = HashMap::new();
-        for (_, column_name) in self.index_to_column.iter() {
+        let column_names = self.columns(); 
+        for  column_name in column_names {
             if column_name == IDS && !include_ids {
                 continue;
             }
