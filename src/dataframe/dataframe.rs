@@ -138,6 +138,9 @@ impl DataFrame {
         let mut df = DataFrame::new();
         df.len = self.len();
         for column_name in columns {
+            if column_name == IDS {
+                continue;
+            }
             let (dtype, data) = self.get_column(column_name);
             df.insert_column(column_name.as_str(), data, dtype);
         }
