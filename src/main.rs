@@ -13,7 +13,7 @@ use inference::inference::rmse;
 fn main() {
     let filename = "housing.csv";
     let df = df_from_csv(filename, None);
-    let stratified_shuffle_split = StratifiedShuffleSplit::new(0.2, &vec![("median_income".to_string(), 5)]);
+    let stratified_shuffle_split = StratifiedShuffleSplit::new(0.2, &vec![("median_income".to_string(), 10)]);
     let (train_indices, test_indices) = stratified_shuffle_split.split(&df); 
     let train_set = df.get_rows_as_df(&train_indices);
     let label_column = "median_house_value";
@@ -32,7 +32,7 @@ fn main() {
         Scalar::None,
     );
     let labels = labels_pipeline.transform(&labels);
-    let mut lin_reg = LinearRegression::new(40.0);
+    let mut lin_reg = LinearRegression::new(20.0);
     lin_reg.fit(&inputs, &labels);
     let labels = labels.into_iter().map(|v| v[0]).collect();
     let predictions = lin_reg.predict(&inputs);

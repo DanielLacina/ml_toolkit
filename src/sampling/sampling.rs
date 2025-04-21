@@ -117,6 +117,18 @@ mod tests {
       let stratified_by = vec![("median_income".to_string(), 5)];
       let stratified_shuffle_split = StratifiedShuffleSplit::new(test_size, &stratified_by);
       let (train_indices, test_indices) = stratified_shuffle_split.split(&df);
+      let mut train_indices_sorted = {
+        let mut train_indices = train_indices.clone();
+        train_indices.sort();
+        train_indices
+      };
+      let mut test_indices_sorted = {
+        let mut test_indices = test_indices.clone();
+        test_indices.sort();
+        test_indices
+      };
+      assert!(train_indices_sorted != train_indices);
+      assert!(test_indices_sorted != test_indices);
       assert!(train_indices.len() == (df.len() as f32 * (1.0 - test_size)) as usize);
       assert!(test_indices.len() == (df.len()  as f32 * test_size) as usize);
       let mut id_hashset = HashSet::new();
@@ -131,6 +143,7 @@ mod tests {
             true
         }
       }));
+       
    }
 
       #[test]
@@ -142,6 +155,18 @@ mod tests {
       let stratified_by = vec![("median_income".to_string(), 5), ("households".to_string(), 2)];
       let stratified_shuffle_split = StratifiedShuffleSplit::new(test_size, &stratified_by);
       let (train_indices, test_indices) = stratified_shuffle_split.split(&df);
+      let mut train_indices_sorted = {
+        let mut train_indices = train_indices.clone();
+        train_indices.sort();
+        train_indices
+      };
+      let mut test_indices_sorted = {
+        let mut test_indices = test_indices.clone();
+        test_indices.sort();
+        test_indices
+      };
+      assert!(train_indices_sorted != train_indices);
+      assert!(test_indices_sorted != test_indices);
       assert!(train_indices.len() == (df.len() as f32 * (1.0 - test_size)) as usize);
       assert!(test_indices.len() == (df.len()  as f32 * test_size) as usize);
       let mut id_hashset = HashSet::new();
