@@ -24,7 +24,7 @@ impl StratifiedShuffleSplit {
         }
     }
 
-    fn get_bin_permutations(&self) -> Vec<Vec<u32>> {
+    fn bin_permutations_with_bin_nums_sorted(&self) -> Vec<Vec<u32>> {
         let mut bin_permutations = Vec::new();
         for (_, num_bins) in self.stratified_by.iter() {
             if bin_permutations.len() == 0 {
@@ -48,20 +48,13 @@ impl StratifiedShuffleSplit {
                 }
             }
         }
+        for permutation in bin_permutations.iter_mut() {
+            permutation.sort();
+        }
         return bin_permutations;
     }
 
-    fn bin_permutations_hashmap(&self, bin_permutations: Vec<Vec<u32>>) -> HashMap<Vec<u32>, Vec<usize>> {
-        let mut bin_permutations_hashmap = HashMap::new();
-        for bin_nums in bin_permutations.into_iter() {
-            let mut bin_nums = bin_nums;
-            bin_nums.sort();
-            bin_permutations_hashmap.insert(bin_nums, Vec::new());
-        }
-        bin_permutations_hashmap
-    }
-
-    fn id_bin_permutations(&self, df: &DataFrame) -> Vec<(usize, Vec<u32>)> {
+    fn sorted_bin_nums_from_df(&self, df: &DataFrame) -> Vec<(usize, Vec<u32>)> {
         let mut id_bin_permutations = Vec::new();
         let all_bins: Vec<Vec<(DataTypeValue, DataTypeValue, u32)>> = self.stratified_by.iter().map(|(column_name, num_bins)| df.bins(&column_name, *num_bins)).collect(); 
         // ids should be ordered thus we iterate using range operator
@@ -71,6 +64,7 @@ impl StratifiedShuffleSplit {
                 let bin_num = bin[i].2;
                 bin_nums.push(bin_num);
              }
+             bin_nums.sort();
              id_bin_permutations.push((i, bin_nums));
 
         }
@@ -80,20 +74,17 @@ impl StratifiedShuffleSplit {
     pub fn split(&self, df: &DataFrame) -> (Vec<usize>, Vec<usize>) {
         let mut test_indices: Vec<usize> = Vec::new();
         let mut train_indices: Vec<usize> = Vec::new();
-        let bin_permutations = self.get_bin_permutations();
-        let mut bin_permutations_hashmap = self.bin_permutations_hashmap(bin_permutations);
-        let id_bin_permutations = self.id_bin_permutations(df); 
-        let mut distinct_bin_nums = HashSet::new();
+        let bin_permutations = self.bin_permutations_with_bin_nums_sorted();
+        let mut bin_permutations_hashmap = HashMap::new();
+        for bin_nums in bin_permutations.iter() {
+            bin_permutations_hashmap.insert(bin_nums.clone(), Vec::new());
+        }
+        let id_bin_permutations = self.sorted_bin_nums_from_df(df); 
         for (id, bin_nums) in id_bin_permutations.into_iter() {
-            let mut bin_nums = bin_nums;
-            bin_nums.sort();
-            distinct_bin_nums.insert(bin_nums.clone());
             let bin_ids = bin_permutations_hashmap.get_mut(&bin_nums).unwrap();
             bin_ids.push(id);
         }
-        let mut distinct_bin_nums: Vec<Vec<u32>> = distinct_bin_nums.into_iter().collect();
-        distinct_bin_nums.sort();
-        for bin_nums in distinct_bin_nums.iter() {
+        for bin_nums in bin_permutations.iter() {
             let ids = bin_permutations_hashmap.get(bin_nums).unwrap();
             let divisor = (1.0 / self.test_size) as usize;
             for id in ids {
