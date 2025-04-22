@@ -247,7 +247,7 @@ impl DataFrame {
         let bin_size = (zipped.len() as f32 / num_bins as f32).ceil() as usize;
         let mut bins = Vec::new();
         for (i, (id, value)) in zipped.into_iter().enumerate() {
-            let bin_num = (i/bin_size) as u32;
+            let bin_num = (i / bin_size) as u32;
             bins.push((id, value, bin_num));
         }
         bins.sort_by(|(a, _, _), (b, _, _)| a.cmp(b));
@@ -407,11 +407,16 @@ mod tests {
     use super::*;
     use crate::dataframe::csv::df_from_csv;
 
+    fn dataframe(row_limit: usize) -> DataFrame {
+        let filename = "housing.csv";
+        let df = df_from_csv(filename, Some(row_limit));
+        return df;
+    }
+
     #[test]
     fn test_df() {
-        let filename = "housing.csv";
         let row_limit = 1000;
-        let df = df_from_csv(filename, Some(row_limit));
+        let df = dataframe(row_limit);
         let column_names = df.columns();
         assert!(df.len() == row_limit);
         assert!(
@@ -470,9 +475,8 @@ mod tests {
 
     #[test]
     fn test_get_columns_as_df() {
-        let filename = "housing.csv";
         let row_limit = 10;
-        let df = df_from_csv(filename, Some(row_limit));
+        let df = dataframe(row_limit);
         let columns = vec![
             "median_income".to_string(),
             "households".to_string(),
@@ -490,9 +494,8 @@ mod tests {
 
     #[test]
     fn test_get_data() {
-        let filename = "housing.csv";
         let row_limit = 10;
-        let df = df_from_csv(filename, Some(row_limit));
+        let df = dataframe(row_limit);
         let data = df.data(true);
         let column_names = vec![
             "longitude",
@@ -543,9 +546,8 @@ mod tests {
 
     #[test]
     fn test_get_columns() {
-        let filename = "housing.csv";
         let row_limit = 10;
-        let df = df_from_csv(filename, Some(row_limit));
+        let df = dataframe(row_limit);
         let (column_dtype, column_values) = df.get_column("ocean_proximity");
         assert!(column_values.len() == row_limit);
         assert!(matches!(column_dtype, DataType::String));
@@ -553,9 +555,8 @@ mod tests {
 
     #[test]
     fn test_convert_column_values_to_string() {
-        let filename = "housing.csv";
         let row_limit = 10;
-        let mut df = df_from_csv(filename, Some(row_limit));
+        let mut df = dataframe(row_limit);
         let column_name = "median_income";
         df.convert_column_values_to_string(column_name);
         let (dtype, values) = df.get_column(column_name);
@@ -605,9 +606,8 @@ mod tests {
 
     #[test]
     fn test_get_columns_by_index() {
-        let filename = "housing.csv";
         let row_limit = 10;
-        let df = df_from_csv(filename, Some(row_limit));
+        let df = dataframe(row_limit);
         // columns ordered by index
         let columns = df.columns();
         let (dtype, _) = df.get_column(columns[0]);
@@ -619,9 +619,8 @@ mod tests {
 
     #[test]
     fn test_get_mean() {
-        let filename = "housing.csv";
         let row_limit = 10;
-        let df = df_from_csv(filename, Some(row_limit));
+        let df = dataframe(row_limit);
         let mut means: HashMap<String, f32> = HashMap::new();
         means.insert("longitude".to_string(), -122.24500);
         means.insert("latitude".to_string(), 37.85000);
@@ -641,9 +640,8 @@ mod tests {
 
     #[test]
     fn test_get_std() {
-        let filename = "housing.csv";
         let row_limit = 10;
-        let df = df_from_csv(filename, Some(row_limit));
+        let df = dataframe(row_limit);
 
         let mut stds: HashMap<String, f32> = HashMap::new();
         stds.insert("longitude".to_string(), 0.011785);
@@ -663,9 +661,8 @@ mod tests {
 
     #[test]
     fn test_get_median() {
-        let filename = "housing.csv";
         let row_limit = 10;
-        let df = df_from_csv(filename, Some(row_limit));
+        let df = dataframe(row_limit);
         let mut medians: HashMap<String, f32> = HashMap::new();
         medians.insert("longitude".to_string(), -122.2500);
         medians.insert("latitude".to_string(), 37.8500);
@@ -684,11 +681,10 @@ mod tests {
 
     #[test]
     fn test_get_bins() {
-        let filename = "housing.csv";
         let row_limit = 100;
         let bins = 5;
         let bin_size = row_limit / bins;
-        let df = df_from_csv(filename, Some(row_limit));
+        let df = dataframe(row_limit);
         let mut bins = df.bins("population", bins);
         bins.sort_by(|(_, _, a), (_, _, b)| a.cmp(b));
         assert!(bins.iter().enumerate().all(|(i, (_, a_value, bin_value))| {
