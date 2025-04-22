@@ -63,22 +63,16 @@ impl StratifiedShuffleSplit {
 
     fn id_bin_permutations(&self, df: &DataFrame) -> Vec<(usize, Vec<u32>)> {
         let mut id_bin_permutations = Vec::new();
-        for (column_name, num_bins) in self.stratified_by.iter() {
-            let bins = df.bins(&column_name, *num_bins);
-            if id_bin_permutations.len() == 0 {
-                for (id, _, bin_num) in bins.iter() {
-                    let id = match id {
-                        DataTypeValue::Id(inner) => inner,
-                        _ => panic!("datatype must be id"),
-                    };
-                    id_bin_permutations.push((id.clone(), vec![*bin_num]));
-                }
-            } else {
-                for (i, (_, bin_nums)) in id_bin_permutations.iter_mut().enumerate() {
-                    let (_, _, cur_bin_num) = bins[i];
-                    bin_nums.push(cur_bin_num);
-                }
-            }
+        let all_bins: Vec<Vec<(DataTypeValue, DataTypeValue, u32)>> = self.stratified_by.iter().map(|(column_name, num_bins)| df.bins(&column_name, *num_bins)).collect(); 
+        // ids should be ordered thus we iterate using range operator
+        for i in (0..df.len()) {
+             let mut bin_nums = Vec::new();    
+             for bin in all_bins.iter() {
+                let bin_num = bin[i].2;
+                bin_nums.push(bin_num);
+             }
+             id_bin_permutations.push((i, bin_nums));
+
         }
         return id_bin_permutations;
     }
