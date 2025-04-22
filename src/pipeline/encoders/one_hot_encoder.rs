@@ -1,5 +1,5 @@
-use crate::dataframe::{DataFrame, DataType, DataTypeValue};
 use super::encoder::Encoder;
+use crate::dataframe::{DataFrame, DataType, DataTypeValue};
 use std::collections::HashMap;
 
 pub struct OneHotEncoder;
@@ -23,7 +23,16 @@ impl OneHotEncoder {
                     panic!("dtype value is not categorical")
                 }
             };
-            assert!(categories.iter().all(|(category, _)| *category != null_placeholder), "{}", format!("Column {} has designated category of {}", column_name, null_placeholder));
+            assert!(
+                categories
+                    .iter()
+                    .all(|(category, _)| *category != null_placeholder),
+                "{}",
+                format!(
+                    "Column {} has designated category of {}",
+                    column_name, null_placeholder
+                )
+            );
             for (category, cat_values) in categories.iter_mut() {
                 if *category == *inner {
                     cat_values.push(DataTypeValue::Float(1.0));
@@ -67,14 +76,14 @@ mod tests {
     use super::*;
     use crate::dataframe::csv::df_from_csv;
 
-//     #[test]
-//     fn test_df_one_hot_encoded() {
-//         let filename = "housing.csv";
-//         let row_limit = 10000;
-//         let df = df_from_csv(filename, Some(row_limit));
-//         let categorical_columns = vec!["ocean_proximity".to_string()];
-//         let one_hot_encoder = OneHotEncoder::new();
-//         let df_one_hot_encoded = one_hot_encoder.df_one_hot_encoded(&df, &categorical_columns);
-//         println!("{:?}", df_one_hot_encoded.columns());
-//     }
- }
+    //     #[test]
+    //     fn test_df_one_hot_encoded() {
+    //         let filename = "housing.csv";
+    //         let row_limit = 10000;
+    //         let df = df_from_csv(filename, Some(row_limit));
+    //         let categorical_columns = vec!["ocean_proximity".to_string()];
+    //         let one_hot_encoder = OneHotEncoder::new();
+    //         let df_one_hot_encoded = one_hot_encoder.df_one_hot_encoded(&df, &categorical_columns);
+    //         println!("{:?}", df_one_hot_encoded.columns());
+    //     }
+}

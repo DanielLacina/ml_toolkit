@@ -1,7 +1,6 @@
 use crate::dataframe::datatype::{DataType, DataTypeValue};
 use std::collections::HashMap;
 
-
 #[derive(Clone)]
 pub struct DataFrame {
     index_to_column: HashMap<usize, String>,
@@ -34,7 +33,8 @@ impl DataFrame {
         // column values vectors to keep everything consistent
         assert!(values.len() == self.len());
         assert!(
-            !(self.columns.contains_key(DataFrame::id_column()) && column_name == DataFrame::id_column()),
+            !(self.columns.contains_key(DataFrame::id_column())
+                && column_name == DataFrame::id_column()),
             "{}",
             format!("{} column cannot be modified", DataFrame::id_column())
         );
@@ -59,20 +59,29 @@ impl DataFrame {
         let (dtype, values) = self.get_column_mut(column_name);
         match dtype {
             DataType::Float => {
-                assert!(matches!(new_value, DataTypeValue::Float(_)) || matches!(new_value, DataTypeValue::Null));
-            },
+                assert!(
+                    matches!(new_value, DataTypeValue::Float(_))
+                        || matches!(new_value, DataTypeValue::Null)
+                );
+            }
             DataType::String => {
-                assert!(matches!(new_value, DataTypeValue::String(_)) || matches!(new_value, DataTypeValue::Null));
-            }, 
-            _ => panic!("column {} has a datatype {:?} that cant be modified", column_name, dtype) 
+                assert!(
+                    matches!(new_value, DataTypeValue::String(_))
+                        || matches!(new_value, DataTypeValue::Null)
+                );
+            }
+            _ => panic!(
+                "column {} has a datatype {:?} that cant be modified",
+                column_name, dtype
+            ),
         }
-        values[row_index] = new_value; 
-    } 
+        values[row_index] = new_value;
+    }
 
     pub fn get_cell_value(&self, column_name: &str, row_index: usize) -> &DataTypeValue {
         let (_, values) = self.get_column(column_name);
-        return &values[row_index]; 
-    } 
+        return &values[row_index];
+    }
 
     pub fn remove_column(&mut self, column_name: &str) {
         self.columns.remove(column_name);
@@ -235,10 +244,11 @@ impl DataFrame {
         let mut zipped: Vec<(DataTypeValue, DataTypeValue)> =
             ids.clone().into_iter().zip(data.clone()).collect();
         zipped.sort_by(|(_, a), (_, b)| a.cmp(b));
-        let bin_size = zipped.len() / num_bins;
+        let bin_size = (zipped.len() as f32 / num_bins as f32).ceil() as usize;
         let mut bins = Vec::new();
         for (i, (id, value)) in zipped.into_iter().enumerate() {
-            bins.push((id, value, (i / bin_size) as u32));
+            let bin_num = (i/bin_size) as u32;
+            bins.push((id, value, bin_num));
         }
         bins.sort_by(|(a, _, _), (b, _, _)| a.cmp(b));
         return bins;
@@ -271,23 +281,25 @@ impl DataFrame {
                             }
                             DataTypeValue::Null => {
                                 panic!("matrix cant have any null values")
-                            },
+                            }
                             _ => panic!("value type is inconsistent with column datatype header"),
                         }
                     }
-                },
+                }
                 DataType::Id => {
                     if include_ids {
                         for (i, value) in values.iter().enumerate() {
                             match value {
-                            DataTypeValue::Id(inner) => {
-                                output_matrix[i].push(*inner as f32);
+                                DataTypeValue::Id(inner) => {
+                                    output_matrix[i].push(*inner as f32);
+                                }
+                                _ => panic!(
+                                    "id column must be id column type (implementation error)"
+                                ),
                             }
-                            _ => panic!("id column must be id column type (implementation error)"),
-                        }
                         }
                     }
-                }, 
+                }
                 DataType::String => panic!("string data must be encoded"),
                 _ => {
                     panic!("only columns with column datatype header of float can be processed")
@@ -356,28 +368,32 @@ impl DataFrame {
     }
 
     pub fn categorical_columns(&self) -> Vec<&String> {
-        let column_names: Vec<&String> = self.columns().into_iter().filter_map(|column_name| {
-            let (dtype, _) = self.get_column(column_name);
-            match dtype {
-                DataType::String => {
-                    Some(column_name)
-                },
-                _ => None
-            }
-        }).collect();
+        let column_names: Vec<&String> = self
+            .columns()
+            .into_iter()
+            .filter_map(|column_name| {
+                let (dtype, _) = self.get_column(column_name);
+                match dtype {
+                    DataType::String => Some(column_name),
+                    _ => None,
+                }
+            })
+            .collect();
         return column_names;
     }
 
     pub fn numeric_columns(&self) -> Vec<&String> {
-        let column_names: Vec<&String> = self.columns().into_iter().filter_map(|column_name| {
-            let (dtype, _) = self.get_column(column_name);
-            match dtype {
-                DataType::Float => {
-                    Some(column_name)
-                },
-                _ => None
-            }
-        }).collect();
+        let column_names: Vec<&String> = self
+            .columns()
+            .into_iter()
+            .filter_map(|column_name| {
+                let (dtype, _) = self.get_column(column_name);
+                match dtype {
+                    DataType::Float => Some(column_name),
+                    _ => None,
+                }
+            })
+            .collect();
         return column_names;
     }
 
