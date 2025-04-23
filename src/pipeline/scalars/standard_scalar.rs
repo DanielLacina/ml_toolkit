@@ -1,6 +1,5 @@
 use crate::{
-    dataframe::{DataFrame, DataTypeValue},
-    pipeline::scalars::scalar::Scalar,
+    dataframe::{DataFrame, DataTypeValue}, pipeline::transformers::Transformer
 };
 
 pub struct StandardScalar;
@@ -10,8 +9,8 @@ impl StandardScalar {
         Self
     }
 }
-impl Scalar for StandardScalar {
-    fn scale_data(&self, df: &DataFrame, column_names: &Vec<String>) -> DataFrame {
+impl Transformer for StandardScalar {
+    fn transform(&self, df: &DataFrame, column_names: &Vec<String>) -> DataFrame {
         let mut df = df.clone();
         let df_column_names: Vec<String> = df
             .columns()

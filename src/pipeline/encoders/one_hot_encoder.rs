@@ -1,12 +1,15 @@
-use super::encoder::Encoder;
-use crate::dataframe::{DataFrame, DataType, DataTypeValue};
+use crate::{dataframe::{DataFrame, DataType, DataTypeValue}, pipeline::transformers::Transformer};
 use std::collections::HashMap;
 
-pub struct OneHotEncoder;
+pub struct OneHotEncoder {
+    drop: bool 
+}
 
 impl OneHotEncoder {
-    pub fn new() -> Self {
-        Self
+    pub fn new(drop: bool) -> Self {
+        Self {
+            drop
+        }
     }
     fn extract_categorical_values(
         &self,
@@ -51,8 +54,8 @@ impl OneHotEncoder {
         return categories;
     }
 }
-impl Encoder for OneHotEncoder {
-    fn apply_encoding(&self, df: &DataFrame, column_names: &Vec<String>) -> DataFrame {
+impl Transformer for OneHotEncoder {
+    fn transform(&self, df: &DataFrame, column_names: &Vec<String>) -> DataFrame {
         let mut df_one_hot_encoded = df.clone();
         for column_name in column_names {
             let (_, values) = df.get_column(column_name);
@@ -62,10 +65,17 @@ impl Encoder for OneHotEncoder {
                 .map(|(category, _)| category.clone())
                 .collect::<Vec<String>>();
             categories.sort();
+            if self.drop {
+                let cat_len = categories.len();
+                categories.remove(cat_len - 1);
+            }   
             for category in categories.iter() {
                 let cat_values = categorical_values.get(category).unwrap();
                 df_one_hot_encoded.insert_column(category, cat_values, &DataType::Float);
             }
+        }
+        for column_name in column_names {
+            df_one_hot_encoded.remove_column(column_name);
         }
         return df_one_hot_encoded;
     }

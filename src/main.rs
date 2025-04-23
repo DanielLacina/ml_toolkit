@@ -6,14 +6,40 @@ mod pipeline;
 mod sampling;
 use algorithms::linear_regression::linear_regression::LinearRegression;
 use dataframe::csv::df_from_csv;
+use dataframe::{DataFrame, DataType};
 use inference::inference::rmse;
 // use pipeline::one_hot_encoder::df_one_hot_encoded;
 use pipeline::encoders::one_hot_encoder::OneHotEncoder;
 use pipeline::imputers::imputer::{Imputer, ImputerStrategy};
 use pipeline::pipeline::*;
 use pipeline::scalars::standard_scalar::StandardScalar;
+use pipeline::transformers::Transformer;
 use sampling::sampling::StratifiedShuffleSplit;
 
+pub struct CombinedAttributesAdder;
+
+impl CombinedAttributesAdder {
+    pub fn new() -> Self {
+        Self
+    } 
+}
+
+impl Transformer for CombinedAttributesAdder {
+    fn transform(&self, df: &DataFrame, column_names: &Vec<String>) -> DataFrame {
+        let mut df = df.clone();   
+        let total_rooms = "total_rooms".to_string();
+        let households = "households".to_string();
+        let population = "population".to_string();
+        let total_bedrooms = "total_bedrooms".to_string();
+        let rooms_per_households = df.divide_columns(&total_rooms, &households);
+        let population_per_households = df.divide_columns(&population, &households);
+        let bedrooms_per_room = df.divide_columns(&total_bedrooms, &total_rooms);
+        df.insert_column("rooms_per_household", &rooms_per_households, &DataType::Float);
+        df.insert_column("population_per_household", &population_per_households, &DataType::Float);
+        df.insert_column("bedrooms_per_room", &bedrooms_per_room, &DataType::Float);
+        return df;
+    }
+}
 fn main() {
     let filename = "housing.csv";
     let df = df_from_csv(filename, None);
@@ -36,17 +62,20 @@ fn main() {
             .get_columns_as_df(&vec![label.to_string()])
             .as_matrix(false),
     );
-    let one_hot_encoder = OneHotEncoder::new();
-    let std_scalar = StandardScalar::new();
-    let imputer = Imputer::new(&ImputerStrategy::Median);
-    let cat_pipeline = CategoricalPipeline::new(Box::new(one_hot_encoder));
-    let num_pipeline = NumericalPipeline::new(imputer, Some(Box::new(std_scalar)));
+    let combined_attr_adder: Box<dyn Transformer> = Box::new(CombinedAttributesAdder::new()); 
+    let one_hot_encoder: Box<dyn Transformer> = Box::new(OneHotEncoder::new(true));
+    let std_scalar: Box<dyn Transformer> = Box::new(StandardScalar::new());
+    let imputer: Box<dyn Transformer> = Box::new(Imputer::new(&ImputerStrategy::Median));
+    let cat_transformers = vec![one_hot_encoder];
+    let cat_pipeline = CategoricalPipeline::new(cat_transformers);
+    let num_transformers = vec![imputer, combined_attr_adder, std_scalar];
+    let num_pipeline = NumericalPipeline::new(num_transformers);
     let column_transformer = ColumnTransformer::new(num_pipeline, cat_pipeline);
     let (train_inputs, test_inputs) = (
         column_transformer.transform(&train_features),
         column_transformer.transform(&test_features),
     );
-    let mut linear_regression = LinearRegression::new(25.0);
+    let mut linear_regression = LinearRegression::new(0.0);
     linear_regression.fit(&train_inputs, &train_labels);
     let (train_predictions, test_predictions) = (
         linear_regression.predict(&train_inputs),

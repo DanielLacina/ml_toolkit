@@ -1,4 +1,4 @@
-use crate::dataframe::{DataFrame, DataType, DataTypeValue};
+use crate::{dataframe::{DataFrame, DataType, DataTypeValue}, pipeline::transformers::Transformer};
 
 #[derive(Clone)]
 pub enum ImputerStrategy {
@@ -16,7 +16,11 @@ impl Imputer {
         }
     }
 
-    pub fn fill(&self, df: &DataFrame, column_names: &Vec<String>) -> DataFrame {
+    
+}
+
+impl Transformer for Imputer {
+    fn transform(&self, df: &DataFrame, column_names: &Vec<String>) -> DataFrame {
         let mut df = df.clone();
         let df_column_names: Vec<String> = df
             .columns()

@@ -1,52 +1,43 @@
-use super::encoders::encoder::Encoder;
-use super::imputers::imputer::Imputer;
-use super::scalars::scalar::Scalar;
+use super::transformers::Transformer;
 use crate::dataframe::{DataFrame, DataType, DataTypeValue};
 
-pub trait Pipeline {
-    fn transform(&self, df: &DataFrame, column_names: &Vec<String>) -> DataFrame;
-}
-
 pub struct NumericalPipeline {
-    imputer: Imputer,
-    scalar: Option<Box<dyn Scalar>>,
+    transformers: Vec<Box<dyn Transformer>>
 }
 
 impl NumericalPipeline {
-    pub fn new(imputer: Imputer, scalar: Option<Box<dyn Scalar>>) -> Self {
-        return Self { imputer, scalar };
+    pub fn new(transformers: Vec<Box<dyn Transformer>>) -> Self {
+        return Self { transformers };
     }
 }
 
-impl Pipeline for NumericalPipeline {
-    fn transform(&self, df: &DataFrame, column_names: &Vec<String>) -> DataFrame {
-        let df_filled = self.imputer.fill(df, column_names);
-        if let Some(scalar) = self.scalar.as_ref() {
-            let df_scaled = scalar.scale_data(&df_filled, column_names);
-            return df_scaled;
-        } else {
-            return df_filled;
-        }
-    }
+impl Transformer for NumericalPipeline {
+         fn transform(&self, df: &DataFrame, column_names: &Vec<String>) -> DataFrame {
+          let mut df = df.clone();
+          for transformer in self.transformers.iter() {
+              df = transformer.transform(&df, column_names);
+          }
+          return df;
+         }
 }
 
 pub struct CategoricalPipeline {
-    encoder: Box<dyn Encoder>,
+    transformers: Vec<Box<dyn Transformer>>
 }
 
 impl CategoricalPipeline {
-    pub fn new(encoder: Box<dyn Encoder>) -> Self {
-        return Self { encoder };
+    pub fn new(transformers: Vec<Box<dyn Transformer>>) -> Self {
+        return Self { transformers };
     }
 }
 
-impl Pipeline for CategoricalPipeline {
+impl Transformer for CategoricalPipeline {
     fn transform(&self, df: &DataFrame, column_names: &Vec<String>) -> DataFrame {
-        let mut df_encoded = self.encoder.apply_encoding(df, column_names);
-        for column_name in column_names {
-            df_encoded.remove_column(column_name);
-        }
-        return df_encoded;
+          let mut df = df.clone();
+          for transformer in self.transformers.iter() {
+              df = transformer.transform(&df, column_names);
+          }
+          return df;
     }
 }
 
@@ -93,16 +84,19 @@ mod tests {
             encoders::one_hot_encoder::{self, OneHotEncoder},
             imputers::imputer::{Imputer, ImputerStrategy},
             scalars::standard_scalar::StandardScalar,
+            transformers::Transformer
         },
     };
 
     #[test]
     fn test_pipeline_transform() {
-        let encoder = OneHotEncoder::new();
-        let scalar = StandardScalar::new();
-        let imputer = Imputer::new(&ImputerStrategy::Median);
-        let categorical_pipeline = CategoricalPipeline::new(Box::new(encoder));
-        let numeric_pipeline = NumericalPipeline::new(imputer, Some(Box::new(scalar)));
+        let encoder: Box<dyn Transformer> = Box::new(OneHotEncoder::new(false));
+        let scalar : Box<dyn Transformer>= Box::new(StandardScalar::new());
+        let imputer: Box<dyn Transformer> = Box::new(Imputer::new(&ImputerStrategy::Median));
+        let categorical_transformers =  vec![encoder]; 
+        let categorical_pipeline = CategoricalPipeline::new(categorical_transformers);
+        let numeric_transformers = vec![imputer, scalar];
+        let numeric_pipeline = NumericalPipeline::new(numeric_transformers);
         let pipeline = ColumnTransformer::new(numeric_pipeline, categorical_pipeline);
         let df = df_from_csv("housing.csv", Some(10000));
         let output_matrix = pipeline.transform(&df);

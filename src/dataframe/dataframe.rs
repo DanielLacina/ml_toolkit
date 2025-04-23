@@ -1,5 +1,6 @@
 use crate::dataframe::datatype::{DataType, DataTypeValue};
 use std::collections::HashMap;
+use std::iter::zip;
 
 #[derive(Clone)]
 pub struct DataFrame {
@@ -233,6 +234,30 @@ impl DataFrame {
         let df = self.df_from_hashmap(&data_hashmap, ids.len());
         return df;
     }
+
+    pub fn extract_value_as_float(&self, value: &DataTypeValue) -> f32 {
+                match value {
+                    DataTypeValue::Float(inner) => {
+                        *inner
+                    },
+                    DataTypeValue::Id(inner) => {
+                        *inner as f32
+                    },
+                    _ => panic!("Cannot extract float value from {:?}", value),
+                } 
+         }   
+    pub fn divide_columns(&self, col1: &str, col2: &str) -> Vec<DataTypeValue> {
+        let (_, col1_values) = self.get_column(col1);
+        let (_, col2_values) = self.get_column(col2);
+        let mut results = Vec::new();
+        for (col1_value, col2_value) in zip(col1_values, col2_values) {
+            let col1_inner_value = self.extract_value_as_float(col1_value);
+            let col2_inner_value = self.extract_value_as_float(col2_value);
+            let result = col1_inner_value/col2_inner_value; 
+            results.push(DataTypeValue::Float(result));
+        }
+        return results;
+    } 
 
     pub fn bins(
         &self,
@@ -699,5 +724,33 @@ mod tests {
             }
             true
         }));
+    }
+
+    #[test]
+    fn test_divide_columns() {
+        let row_limit = 10;
+        let df = dataframe(row_limit);  
+        let col1 = "total_bedrooms";
+        let col2 = "total_rooms";
+        let results = df.divide_columns(col1, col2);
+        let (_, col1_values) = df.get_column(col1); 
+        let (_, col2_values) = df.get_column(col2); 
+        assert!(zip(zip(col1_values, col2_values), results.iter()).all(|((col1_value, col2_value), result)| {
+              let col1_value =  df.extract_value_as_float(col1_value); 
+              let col2_value = df.extract_value_as_float(col2_value);
+              let result = df.extract_value_as_float(result);
+              (col1_value/col2_value) == result
+        }));
+        assert!(results.len() == df.len());
+        assert!(results.iter().all(|result| matches!(result, DataTypeValue::Float(_))));
+    }
+    #[test]
+    #[should_panic] 
+    fn test_divide_by_string_column() {
+        let row_limit = 10;
+        let df = dataframe(row_limit);  
+        let col1 = "total_bedrooms";
+        let col2 = "ocean_proximity";
+        df.divide_columns(col1, col2);
     }
 }
