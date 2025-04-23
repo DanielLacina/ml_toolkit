@@ -140,12 +140,12 @@ mod tests {
                 id_hashset.insert(index.clone());
                 true
             }
-        })); 
+        }));
     }
     #[test]
     fn test_simple_stratified_shuffle_split() {
         let stratified_by = vec![("median_income".to_string(), 5)];
-        test_stratified_shuffle_split(&stratified_by); 
+        test_stratified_shuffle_split(&stratified_by);
     }
 
     #[test]
@@ -154,6 +154,6 @@ mod tests {
             ("median_income".to_string(), 5),
             ("households".to_string(), 2),
         ];
-        test_stratified_shuffle_split(&stratified_by); 
+        test_stratified_shuffle_split(&stratified_by);
     }
 }

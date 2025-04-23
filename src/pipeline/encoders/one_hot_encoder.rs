@@ -1,15 +1,16 @@
-use crate::{dataframe::{DataFrame, DataType, DataTypeValue}, pipeline::transformers::Transformer};
+use crate::{
+    dataframe::{DataFrame, DataType, DataTypeValue},
+    pipeline::transformers::Transformer,
+};
 use std::collections::HashMap;
 
 pub struct OneHotEncoder {
-    drop: bool 
+    drop: bool,
 }
 
 impl OneHotEncoder {
     pub fn new(drop: bool) -> Self {
-        Self {
-            drop
-        }
+        Self { drop }
     }
     fn extract_categorical_values(
         &self,
@@ -68,7 +69,7 @@ impl Transformer for OneHotEncoder {
             if self.drop {
                 let cat_len = categories.len();
                 categories.remove(cat_len - 1);
-            }   
+            }
             for category in categories.iter() {
                 let cat_values = categorical_values.get(category).unwrap();
                 df_one_hot_encoded.insert_column(category, cat_values, &DataType::Float);

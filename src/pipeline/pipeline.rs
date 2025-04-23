@@ -2,7 +2,7 @@ use super::transformers::Transformer;
 use crate::dataframe::{DataFrame, DataType, DataTypeValue};
 
 pub struct NumericalPipeline {
-    transformers: Vec<Box<dyn Transformer>>
+    transformers: Vec<Box<dyn Transformer>>,
 }
 
 impl NumericalPipeline {
@@ -12,17 +12,17 @@ impl NumericalPipeline {
 }
 
 impl Transformer for NumericalPipeline {
-         fn transform(&self, df: &DataFrame, column_names: &Vec<String>) -> DataFrame {
-          let mut df = df.clone();
-          for transformer in self.transformers.iter() {
-              df = transformer.transform(&df, column_names);
-          }
-          return df;
-         }
+    fn transform(&self, df: &DataFrame, column_names: &Vec<String>) -> DataFrame {
+        let mut df = df.clone();
+        for transformer in self.transformers.iter() {
+            df = transformer.transform(&df, column_names);
+        }
+        return df;
+    }
 }
 
 pub struct CategoricalPipeline {
-    transformers: Vec<Box<dyn Transformer>>
+    transformers: Vec<Box<dyn Transformer>>,
 }
 
 impl CategoricalPipeline {
@@ -33,11 +33,11 @@ impl CategoricalPipeline {
 
 impl Transformer for CategoricalPipeline {
     fn transform(&self, df: &DataFrame, column_names: &Vec<String>) -> DataFrame {
-          let mut df = df.clone();
-          for transformer in self.transformers.iter() {
-              df = transformer.transform(&df, column_names);
-          }
-          return df;
+        let mut df = df.clone();
+        for transformer in self.transformers.iter() {
+            df = transformer.transform(&df, column_names);
+        }
+        return df;
     }
 }
 
@@ -84,16 +84,16 @@ mod tests {
             encoders::one_hot_encoder::{self, OneHotEncoder},
             imputers::imputer::{Imputer, ImputerStrategy},
             scalars::standard_scalar::StandardScalar,
-            transformers::Transformer
+            transformers::Transformer,
         },
     };
 
     #[test]
     fn test_pipeline_transform() {
         let encoder: Box<dyn Transformer> = Box::new(OneHotEncoder::new(false));
-        let scalar : Box<dyn Transformer>= Box::new(StandardScalar::new());
+        let scalar: Box<dyn Transformer> = Box::new(StandardScalar::new());
         let imputer: Box<dyn Transformer> = Box::new(Imputer::new(&ImputerStrategy::Median));
-        let categorical_transformers =  vec![encoder]; 
+        let categorical_transformers = vec![encoder];
         let categorical_pipeline = CategoricalPipeline::new(categorical_transformers);
         let numeric_transformers = vec![imputer, scalar];
         let numeric_pipeline = NumericalPipeline::new(numeric_transformers);

@@ -236,16 +236,28 @@ impl DataFrame {
     }
 
     pub fn extract_value_as_float(&self, value: &DataTypeValue) -> f32 {
-                match value {
-                    DataTypeValue::Float(inner) => {
-                        *inner
-                    },
-                    DataTypeValue::Id(inner) => {
-                        *inner as f32
-                    },
-                    _ => panic!("Cannot extract float value from {:?}", value),
-                } 
-         }   
+        match value {
+            DataTypeValue::Float(inner) => *inner,
+            DataTypeValue::Id(inner) => *inner as f32,
+            _ => panic!("Cannot extract float value from {:?}", value),
+        }
+    }
+
+    pub fn get_value_frequencies(&self, column_name: &str) -> Vec<(DataTypeValue, u32)> {
+        let mut frequencies = HashMap::new();
+        let (_, values) = self.get_column(column_name); 
+        for value in values {
+            if let Some(frequency) = frequencies.get_mut(value) {
+                *frequency += 1;
+            } else {
+                frequencies.insert(value.clone(), 1);
+            }
+        }
+       let mut frequencies: Vec<(DataTypeValue, u32)> = frequencies.into_iter().collect();
+       frequencies.sort_by(|(_, a), (_, b)| a.cmp(b));
+       return frequencies; 
+    }
+
     pub fn divide_columns(&self, col1: &str, col2: &str) -> Vec<DataTypeValue> {
         let (_, col1_values) = self.get_column(col1);
         let (_, col2_values) = self.get_column(col2);
@@ -253,11 +265,11 @@ impl DataFrame {
         for (col1_value, col2_value) in zip(col1_values, col2_values) {
             let col1_inner_value = self.extract_value_as_float(col1_value);
             let col2_inner_value = self.extract_value_as_float(col2_value);
-            let result = col1_inner_value/col2_inner_value; 
+            let result = col1_inner_value / col2_inner_value;
             results.push(DataTypeValue::Float(result));
         }
         return results;
-    } 
+    }
 
     pub fn bins(
         &self,
@@ -729,26 +741,45 @@ mod tests {
     #[test]
     fn test_divide_columns() {
         let row_limit = 10;
-        let df = dataframe(row_limit);  
+        let df = dataframe(row_limit);
         let col1 = "total_bedrooms";
         let col2 = "total_rooms";
         let results = df.divide_columns(col1, col2);
-        let (_, col1_values) = df.get_column(col1); 
-        let (_, col2_values) = df.get_column(col2); 
-        assert!(zip(zip(col1_values, col2_values), results.iter()).all(|((col1_value, col2_value), result)| {
-              let col1_value =  df.extract_value_as_float(col1_value); 
-              let col2_value = df.extract_value_as_float(col2_value);
-              let result = df.extract_value_as_float(result);
-              (col1_value/col2_value) == result
-        }));
+        let (_, col1_values) = df.get_column(col1);
+        let (_, col2_values) = df.get_column(col2);
+        assert!(zip(zip(col1_values, col2_values), results.iter()).all(
+            |((col1_value, col2_value), result)| {
+                let col1_value = df.extract_value_as_float(col1_value);
+                let col2_value = df.extract_value_as_float(col2_value);
+                let result = df.extract_value_as_float(result);
+                (col1_value / col2_value) == result
+            }
+        ));
         assert!(results.len() == df.len());
-        assert!(results.iter().all(|result| matches!(result, DataTypeValue::Float(_))));
+        assert!(
+            results
+                .iter()
+                .all(|result| matches!(result, DataTypeValue::Float(_)))
+        );
     }
+
     #[test]
-    #[should_panic] 
+    fn test_get_value_frequencies() {
+        let row_limit = 1000;
+        let df = dataframe(row_limit);
+        let column_name = "ocean_proximity";
+        let frequencies = df.get_value_frequencies(column_name);
+        let total_frequency = frequencies.iter().fold(0, |acc, (_, frequency)| acc + frequency); 
+        assert!(row_limit as u32 == total_frequency);
+        assert!(frequencies.len() == 3);
+        assert!(frequencies.iter().all(|(_, frequency)| *frequency > 10));
+    }
+
+    #[test]
+    #[should_panic]
     fn test_divide_by_string_column() {
         let row_limit = 10;
-        let df = dataframe(row_limit);  
+        let df = dataframe(row_limit);
         let col1 = "total_bedrooms";
         let col2 = "ocean_proximity";
         df.divide_columns(col1, col2);

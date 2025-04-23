@@ -1,5 +1,6 @@
 use crate::{
-    dataframe::{DataFrame, DataTypeValue}, pipeline::transformers::Transformer
+    dataframe::{DataFrame, DataTypeValue},
+    pipeline::transformers::Transformer,
 };
 
 pub struct StandardScalar;

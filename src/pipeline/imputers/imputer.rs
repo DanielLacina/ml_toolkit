@@ -1,4 +1,7 @@
-use crate::{dataframe::{DataFrame, DataType, DataTypeValue}, pipeline::transformers::Transformer};
+use crate::{
+    dataframe::{DataFrame, DataType, DataTypeValue},
+    pipeline::transformers::Transformer,
+};
 
 #[derive(Clone)]
 pub enum ImputerStrategy {
@@ -15,8 +18,6 @@ impl Imputer {
             strategy: strategy.clone(),
         }
     }
-
-    
 }
 
 impl Transformer for Imputer {

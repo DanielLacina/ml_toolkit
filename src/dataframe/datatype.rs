@@ -1,4 +1,5 @@
-use std::cmp::Ordering;
+use std::{cmp::Ordering, hash::Hasher};
+use std::hash::{Hash};
 
 #[derive(Clone, Debug)]
 pub enum DataTypeValue {
@@ -6,6 +7,26 @@ pub enum DataTypeValue {
     Float(f32),
     String(String),
     Id(usize),
+}
+
+impl Hash for DataTypeValue {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+         match self {
+            DataTypeValue::Float(inner) => {
+                (inner * 10000.0).round().to_bits().hash(state); 
+            },
+            DataTypeValue::Id(inner) => {
+                inner.hash(state);
+            },
+            DataTypeValue::Null => {
+                "null".to_string().hash(state);
+            },
+            DataTypeValue::String(inner) => {
+                inner.hash(state);
+            }
+         } 
+    }
+
 }
 
 impl PartialOrd for DataTypeValue {

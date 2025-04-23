@@ -1,32 +1,26 @@
-mod algorithms;
-mod dataframe;
-mod inference;
-mod linear_algebra;
-mod pipeline;
-mod sampling;
-use algorithms::linear_regression::linear_regression::LinearRegression;
-use dataframe::csv::df_from_csv;
-use dataframe::{DataFrame, DataType};
-use inference::inference::rmse;
-// use pipeline::one_hot_encoder::df_one_hot_encoded;
-use pipeline::encoders::one_hot_encoder::OneHotEncoder;
-use pipeline::imputers::imputer::{Imputer, ImputerStrategy};
-use pipeline::pipeline::*;
-use pipeline::scalars::standard_scalar::StandardScalar;
-use pipeline::transformers::Transformer;
-use sampling::sampling::StratifiedShuffleSplit;
+use ml_toolkit::algorithms::linear_regression::linear_regression::LinearRegression;
+use ml_toolkit::dataframe::csv::df_from_csv;
+use ml_toolkit::dataframe::{DataFrame, DataType};
+use ml_toolkit::inference::inference::rmse;
+// use ml_toolkit::pipeline::one_hot_encoder::df_one_hot_encoded;
+use ml_toolkit::pipeline::encoders::one_hot_encoder::OneHotEncoder;
+use ml_toolkit::pipeline::imputers::imputer::{Imputer, ImputerStrategy};
+use ml_toolkit::pipeline::pipeline::*;
+use ml_toolkit::pipeline::scalars::standard_scalar::StandardScalar;
+use ml_toolkit::pipeline::transformers::Transformer;
+use ml_toolkit::sampling::sampling::StratifiedShuffleSplit;
 
 pub struct CombinedAttributesAdder;
 
 impl CombinedAttributesAdder {
     pub fn new() -> Self {
         Self
-    } 
+    }
 }
 
 impl Transformer for CombinedAttributesAdder {
     fn transform(&self, df: &DataFrame, column_names: &Vec<String>) -> DataFrame {
-        let mut df = df.clone();   
+        let mut df = df.clone();
         let total_rooms = "total_rooms".to_string();
         let households = "households".to_string();
         let population = "population".to_string();
@@ -34,8 +28,16 @@ impl Transformer for CombinedAttributesAdder {
         let rooms_per_households = df.divide_columns(&total_rooms, &households);
         let population_per_households = df.divide_columns(&population, &households);
         let bedrooms_per_room = df.divide_columns(&total_bedrooms, &total_rooms);
-        df.insert_column("rooms_per_household", &rooms_per_households, &DataType::Float);
-        df.insert_column("population_per_household", &population_per_households, &DataType::Float);
+        df.insert_column(
+            "rooms_per_household",
+            &rooms_per_households,
+            &DataType::Float,
+        );
+        df.insert_column(
+            "population_per_household",
+            &population_per_households,
+            &DataType::Float,
+        );
         df.insert_column("bedrooms_per_room", &bedrooms_per_room, &DataType::Float);
         return df;
     }
@@ -62,7 +64,7 @@ fn main() {
             .get_columns_as_df(&vec![label.to_string()])
             .as_matrix(false),
     );
-    let combined_attr_adder: Box<dyn Transformer> = Box::new(CombinedAttributesAdder::new()); 
+    let combined_attr_adder: Box<dyn Transformer> = Box::new(CombinedAttributesAdder::new());
     let one_hot_encoder: Box<dyn Transformer> = Box::new(OneHotEncoder::new(true));
     let std_scalar: Box<dyn Transformer> = Box::new(StandardScalar::new());
     let imputer: Box<dyn Transformer> = Box::new(Imputer::new(&ImputerStrategy::Median));
