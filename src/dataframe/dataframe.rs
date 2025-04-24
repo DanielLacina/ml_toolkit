@@ -245,7 +245,7 @@ impl DataFrame {
 
     pub fn get_value_frequencies(&self, column_name: &str) -> Vec<(DataTypeValue, u32)> {
         let mut frequencies = HashMap::new();
-        let (_, values) = self.get_column(column_name); 
+        let (_, values) = self.get_column(column_name);
         for value in values {
             if let Some(frequency) = frequencies.get_mut(value) {
                 *frequency += 1;
@@ -253,9 +253,9 @@ impl DataFrame {
                 frequencies.insert(value.clone(), 1);
             }
         }
-       let mut frequencies: Vec<(DataTypeValue, u32)> = frequencies.into_iter().collect();
-       frequencies.sort_by(|(_, a), (_, b)| a.cmp(b));
-       return frequencies; 
+        let mut frequencies: Vec<(DataTypeValue, u32)> = frequencies.into_iter().collect();
+        frequencies.sort_by(|(_, a), (_, b)| a.cmp(b));
+        return frequencies;
     }
 
     pub fn divide_columns(&self, col1: &str, col2: &str) -> Vec<DataTypeValue> {
@@ -718,11 +718,11 @@ mod tests {
 
     #[test]
     fn test_get_bins() {
-        let row_limit = 100;
+        let row_limit = 1000;
         let bins = 5;
         let bin_size = row_limit / bins;
         let df = dataframe(row_limit);
-        let mut bins = df.bins("population", bins);
+        let mut bins = df.bins("median_income", bins);
         bins.sort_by(|(_, _, a), (_, _, b)| a.cmp(b));
         assert!(bins.iter().enumerate().all(|(i, (_, a_value, bin_value))| {
             let bin_row_count_by_bin = i / (*bin_value as usize + 1);
@@ -769,7 +769,9 @@ mod tests {
         let df = dataframe(row_limit);
         let column_name = "ocean_proximity";
         let frequencies = df.get_value_frequencies(column_name);
-        let total_frequency = frequencies.iter().fold(0, |acc, (_, frequency)| acc + frequency); 
+        let total_frequency = frequencies
+            .iter()
+            .fold(0, |acc, (_, frequency)| acc + frequency);
         assert!(row_limit as u32 == total_frequency);
         assert!(frequencies.len() == 3);
         assert!(frequencies.iter().all(|(_, frequency)| *frequency > 10));

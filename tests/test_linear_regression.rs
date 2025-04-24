@@ -31,5 +31,7 @@ fn test_linear_regression() {
     linear_regression.fit(&inputs, &labels);
     let weights = linear_regression.weights();
     assert!(weights.len() == inputs[0].len());
+    let bias = linear_regression.bias();
+    assert!(bias != 0.0);
     let prediction = linear_regression.predict(&inputs);
 }

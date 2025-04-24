@@ -46,7 +46,7 @@ fn main() {
     let filename = "housing.csv";
     let df = df_from_csv(filename, None);
     let stratified_shuffle_split =
-        StratifiedShuffleSplit::new(0.2, &vec![("median_income".to_string(), 5)]);
+        StratifiedShuffleSplit::new(0.2, &vec![("median_income".to_string(), 6)]);
     let (train_indices, test_indices) = stratified_shuffle_split.split(&df);
     let (train_set, test_set) = (
         df.get_rows_as_df(&train_indices),

@@ -64,8 +64,8 @@ impl StratifiedShuffleSplit {
         // ids should be ordered thus we iterate using range operator
         for i in (0..df.len()) {
             let mut bin_nums = Vec::new();
-            for bin in all_bins.iter() {
-                let bin_num = bin[i].2;
+            for bins in all_bins.iter() {
+                let bin_num = bins[i].2;
                 bin_nums.push(bin_num);
             }
             bin_nums.sort();
@@ -90,8 +90,8 @@ impl StratifiedShuffleSplit {
         for bin_nums in bin_permutations.iter() {
             let ids = bin_permutations_hashmap.get(bin_nums).unwrap();
             let divisor = (1.0 / self.test_size) as usize;
-            for id in ids {
-                if *id % divisor == 0 {
+            for (i, id) in ids.iter().enumerate() {
+                if i % divisor == 0 {
                     test_indices.push(*id)
                 } else {
                     train_indices.push(*id);
