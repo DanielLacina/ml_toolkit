@@ -49,7 +49,7 @@ impl LinearRegression {
             .into_iter()
             .map(|parameter| parameter[0])
             .collect();
-        let weights = parameters[0..parameters.len() - 2].to_vec();
+        let weights = parameters[0..parameters.len() - 1].to_vec();
         let bias = parameters[parameters.len() - 1];
         self.weights = weights;
         self.bias = bias;
