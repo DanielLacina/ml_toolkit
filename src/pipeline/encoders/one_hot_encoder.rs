@@ -87,17 +87,76 @@ mod tests {
     use super::*;
     use crate::dataframe::csv::df_from_csv;
 
-        #[test]
-        fn test_df_one_hot_encoded() {
-            let filename = "housing.csv";
-            let row_limit = 1000;
-            let df = df_from_csv(filename, Some(row_limit));
-            let categorical_column = "ocean_proximity"; 
-            let categories = df.get_value_frequencies(categorical_column);
-            let one_hot_encoder = OneHotEncoder::new(false);
-            let df_one_hot_encoded = one_hot_encoder.transform(&df, &vec![categorical_column.to_string()]);
-            assert!(categories.iter().all(|(value, _)| {
-                  
-            }));
+    fn test_df_one_hot_encoded(drop: bool) {
+        let filename = "housing.csv";
+        let row_limit = 1000;
+        let df = df_from_csv(filename, Some(row_limit));
+        let categorical_column = "ocean_proximity";
+        let one_hot_encoder = OneHotEncoder::new(false);
+        let df_one_hot_encoded =
+            one_hot_encoder.transform(&df, &vec![categorical_column.to_string()]);
+        let df_one_hot_encoded_columns = df_one_hot_encoded.columns();
+        let categories = df.get_value_frequencies(categorical_column);
+        let mut categories: Vec<String> = categories
+            .into_iter()
+            .map(|(value, _)| match value {
+                DataTypeValue::String(inner) => inner,
+                _ => panic!("datatype must be a string"),
+            })
+            .collect();
+        if drop {
+            categories.sort();
+            categories.remove(categories.len() - 1);
         }
+        assert!(
+            categories
+                .iter()
+                .all(|category| { df_one_hot_encoded_columns.contains(&category) })
+        );
+        let category_columns: Vec<(&DataType, &Vec<DataTypeValue>)> = categories
+            .iter()
+            .map(|category| df_one_hot_encoded.get_column(&category))
+            .collect();
+        let mut one_count = 0; 
+        assert!((0..df.len()).all(|i| {
+            for (_, values) in category_columns.iter() {
+                let mut found_one = false;
+                let value = values.get(i).unwrap();
+                if *value == DataTypeValue::Float(1.0) {
+                    if found_one {
+                        return false;
+                    } else {
+                        found_one = true;
+                        one_count += 1;
+                    }
+                } else if *value == DataTypeValue::Float(0.0) {
+                } else {
+                    return false;
+                }
+            }
+            return true;
+        }));
+        assert!(one_count > 0);
+    }
+
+    #[test]
+    fn test_df_one_hot_encoded_no_drop() {
+        test_df_one_hot_encoded(false);
+    }
+
+    #[test]
+    fn test_df_one_hot_encoded_drop() {
+        test_df_one_hot_encoded(true);
+    }
+
+    #[test]
+    #[should_panic]
+    fn test_df_one_hot_encoded_with_numeric_column() {
+        let filename = "housing.csv";
+        let row_limit = 1000;
+        let df = df_from_csv(filename, Some(row_limit));
+        let numeric_column = "median_income";
+        let one_hot_encoder = OneHotEncoder::new(false);
+        one_hot_encoder.transform(&df, &vec![numeric_column.to_string()]);
+    }
 }
