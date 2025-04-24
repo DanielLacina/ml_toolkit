@@ -87,14 +87,17 @@ mod tests {
     use super::*;
     use crate::dataframe::csv::df_from_csv;
 
-    //     #[test]
-    //     fn test_df_one_hot_encoded() {
-    //         let filename = "housing.csv";
-    //         let row_limit = 10000;
-    //         let df = df_from_csv(filename, Some(row_limit));
-    //         let categorical_columns = vec!["ocean_proximity".to_string()];
-    //         let one_hot_encoder = OneHotEncoder::new();
-    //         let df_one_hot_encoded = one_hot_encoder.df_one_hot_encoded(&df, &categorical_columns);
-    //         println!("{:?}", df_one_hot_encoded.columns());
-    //     }
+        #[test]
+        fn test_df_one_hot_encoded() {
+            let filename = "housing.csv";
+            let row_limit = 1000;
+            let df = df_from_csv(filename, Some(row_limit));
+            let categorical_column = "ocean_proximity"; 
+            let categories = df.get_value_frequencies(categorical_column);
+            let one_hot_encoder = OneHotEncoder::new(false);
+            let df_one_hot_encoded = one_hot_encoder.transform(&df, &vec![categorical_column.to_string()]);
+            assert!(categories.iter().all(|(value, _)| {
+                  
+            }));
+        }
 }

@@ -338,9 +338,6 @@ impl DataFrame {
                     }
                 }
                 DataType::String => panic!("string data must be encoded"),
-                _ => {
-                    panic!("only columns with column datatype header of float can be processed")
-                }
             }
         }
         return output_matrix;
