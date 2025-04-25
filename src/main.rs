@@ -9,6 +9,7 @@ use ml_toolkit::pipeline::pipeline::*;
 use ml_toolkit::pipeline::scalars::standard_scalar::StandardScalar;
 use ml_toolkit::pipeline::transformers::Transformer;
 use ml_toolkit::sampling::sampling::StratifiedShuffleSplit;
+use ml_toolkit::pipeline::polynomial_features::polynomial_features::PolynomialFeatures;
 
 pub struct CombinedAttributesAdder;
 
@@ -56,6 +57,13 @@ fn main() {
     let label = "median_house_value";
     train_features.remove_column(label);
     test_features.remove_column(label);
+    let polynomial_features = PolynomialFeatures::new(2);
+    let columns: Vec<String> = train_features.numeric_columns().into_iter().map(|column| column.clone()).collect(); 
+    let imputer: Box<dyn Transformer> = Box::new(Imputer::new(&ImputerStrategy::Median));
+    let train_features = imputer.transform(&train_features, &columns); 
+    let test_features = imputer.transform(&test_features, &columns); 
+    let train_features = polynomial_features.transform(&train_features, &columns);
+    let test_features = polynomial_features.transform(&test_features, &columns);
     let (train_labels, test_labels) = (
         train_set
             .get_columns_as_df(&vec![label.to_string()])
@@ -67,10 +75,9 @@ fn main() {
     let combined_attr_adder: Box<dyn Transformer> = Box::new(CombinedAttributesAdder::new());
     let one_hot_encoder: Box<dyn Transformer> = Box::new(OneHotEncoder::new(true));
     let std_scalar: Box<dyn Transformer> = Box::new(StandardScalar::new());
-    let imputer: Box<dyn Transformer> = Box::new(Imputer::new(&ImputerStrategy::Median));
     let cat_transformers = vec![one_hot_encoder];
     let cat_pipeline = CategoricalPipeline::new(cat_transformers);
-    let num_transformers = vec![imputer, combined_attr_adder, std_scalar];
+    let num_transformers = vec![combined_attr_adder, std_scalar];
     let num_pipeline = NumericalPipeline::new(num_transformers);
     let column_transformer = ColumnTransformer::new(num_pipeline, cat_pipeline);
     let (train_inputs, test_inputs) = (
