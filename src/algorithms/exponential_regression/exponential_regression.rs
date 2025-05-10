@@ -43,12 +43,15 @@ impl ExponentialRegression {
             let jacobian_dotted = jacobian_transposed.multiply(&jacobian);
             let jacobian_dotted_inverse = jacobian_dotted.inverse();
             let residual_dotted = jacobian_transposed.multiply(&residuals);
-            let gradient = jacobian_dotted_inverse.multiply(&residual_dotted);
-            println!("{:?}", gradient.transpose().get(0));
-            parameters = zip(parameters, gradient.matrix())
+            let gradient = jacobian_dotted_inverse.multiply(&residual_dotted).transpose();
+            let gradient = gradient.get(0);
+            let gradient_norm = gradient.norm();
+            if gradient_norm.abs() < 0.0001 {
+                break;
+            }
+            parameters = zip(parameters, gradient.vector())
                 .map(|(parameter, gradient_value)| {
-                    let gradient_value = gradient_value.get(0);
-                    parameter - gradient_value
+                    parameter - (gradient_value * 0.01)
                 })
                 .collect();
         }
