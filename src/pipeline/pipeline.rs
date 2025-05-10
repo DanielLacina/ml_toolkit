@@ -1,5 +1,6 @@
 use super::transformers::Transformer;
 use crate::dataframe::{DataFrame, DataType, DataTypeValue};
+use crate::linear_algebra::Matrix;
 
 pub struct NumericalPipeline {
     transformers: Vec<Box<dyn Transformer>>,
@@ -53,7 +54,7 @@ impl ColumnTransformer {
             categorical_pipeline,
         }
     }
-    pub fn transform(&self, df: &DataFrame) -> Vec<Vec<f32>> {
+    pub fn transform(&self, df: &DataFrame) -> Matrix {
         let categorical_columns = df
             .categorical_columns()
             .into_iter()
@@ -100,6 +101,6 @@ mod tests {
         let pipeline = ColumnTransformer::new(numeric_pipeline, categorical_pipeline);
         let df = df_from_csv("housing.csv", Some(10000));
         let output_matrix = pipeline.transform(&df);
-        assert!(output_matrix.iter().all(|v| { v.len() == 14 }));
+        assert!(output_matrix.matrix().iter().all(|v| { v.len() == 14 }));
     }
 }

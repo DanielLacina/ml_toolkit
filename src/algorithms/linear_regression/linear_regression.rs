@@ -1,4 +1,4 @@
-use crate::linear_algebra::matrices;
+use crate::linear_algebra::{Matrix, RowVector};
 use std::iter::zip;
 
 pub struct LinearRegression {
@@ -15,20 +15,27 @@ impl LinearRegression {
             ridge_value,
         };
     }
-    pub fn fit(&mut self, data: &Vec<Vec<f32>>, labels: &Vec<Vec<f32>>) {
-        let mut X = data.clone();
-        for x_vector in X.iter_mut() {
-            x_vector.push(1.0);
-        }
+    pub fn fit(&mut self, data: &Matrix, labels: &Matrix) {
+        let X = Matrix::new(
+            &data
+                .matrix()
+                .iter()
+                .map(|vector| {
+                    let mut vector = vector.vector().clone();
+                    vector.push(1.0);
+                    RowVector::new(&vector)
+                })
+                .collect(),
+        );
         let y = labels.clone();
-        let X_transpose = matrices::transpose_matrix(&X);
-        let mut X_output = matrices::multiply_matrices(&X_transpose, &X);
+        let X_transpose = X.transpose();
+        let mut X_output = X.multiply(&X_transpose);
         if self.ridge_value != 0.0 {
-            X_output = X_output
+            X_output = Matrix::new(&X_output.matrix()
                 .iter()
                 .enumerate()
                 .map(|(i, row_vector)| {
-                    row_vector
+                    RowVector::new(&row_vector.vector()
                         .iter()
                         .enumerate()
                         .map(|(j, value)| {
@@ -38,16 +45,17 @@ impl LinearRegression {
                                 *value
                             }
                         })
-                        .collect()
+                        .collect::<Vec<f32>>())
                 })
-                .collect();
+                .collect::<Vec<RowVector>>());
         }
-        let y_output = matrices::multiply_matrices(&X_transpose, &y);
-        let X_output_inverse = matrices::inverse_matrix(&X_output);
-        let parameter_matrix = matrices::multiply_matrices(&X_output_inverse, &y_output);
+        let y_output = X_transpose.multiply(&y);
+        let X_output_inverse = X_output.inverse();
+        let parameter_matrix = X_output_inverse.multiply(&y_output);
         let parameters: Vec<f32> = parameter_matrix
-            .into_iter()
-            .map(|parameter| parameter[0])
+            .matrix()
+            .iter()
+            .map(|parameter| parameter.get(0))
             .collect();
         let weights = parameters[0..parameters.len() - 1].to_vec();
         let bias = parameters[parameters.len() - 1];
@@ -55,15 +63,15 @@ impl LinearRegression {
         self.bias = bias;
     }
 
-    pub fn predict(&self, data: &Vec<Vec<f32>>) -> Vec<f32> {
-        let outputs: Vec<f32> = data
-            .iter()
+    pub fn predict(&self, data: &Matrix) -> RowVector {
+        let outputs: RowVector = RowVector::new(&data.
+            matrix().iter()
             .map(|row_vector| {
-                zip(row_vector, self.weights.iter())
+                zip(row_vector.vector(), self.weights.iter())
                     .fold(0.0, |acc, (row_v, weight)| acc + row_v * weight)
                     + self.bias
             })
-            .collect();
+            .collect());
         return outputs;
     }
 

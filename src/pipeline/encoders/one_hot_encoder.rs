@@ -117,7 +117,7 @@ mod tests {
             .iter()
             .map(|category| df_one_hot_encoded.get_column(&category))
             .collect();
-        let mut one_count = 0; 
+        let mut one_count = 0;
         assert!((0..df.len()).all(|i| {
             for (_, values) in category_columns.iter() {
                 let mut found_one = false;

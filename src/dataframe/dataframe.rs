@@ -1,4 +1,5 @@
 use crate::dataframe::datatype::{DataType, DataTypeValue};
+use crate::linear_algebra::matrices::Matrix;
 use std::collections::HashMap;
 use std::iter::zip;
 
@@ -304,7 +305,7 @@ impl DataFrame {
         return data_hashmap;
     }
 
-    pub fn as_matrix(&self, include_ids: bool) -> Vec<Vec<f32>> {
+    pub fn as_matrix(&self, include_ids: bool) -> Matrix {
         let mut output_matrix = vec![vec![]; self.len()];
         let column_names = self.columns();
         for column_name in column_names {
@@ -340,7 +341,7 @@ impl DataFrame {
                 DataType::String => panic!("string data must be encoded"),
             }
         }
-        return output_matrix;
+        return Matrix::to_matrix(&output_matrix);
     }
 
     pub fn median(&self, column_name: &str) -> f32 {

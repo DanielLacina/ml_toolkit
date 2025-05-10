@@ -60,21 +60,26 @@ impl Transformer for Imputer {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::dataframe::csv::df_from_csv; 
+    use crate::dataframe::csv::df_from_csv;
 
-    #[test] 
+    #[test]
     fn test_imputer() {
         let filename = "housing.csv";
         let row_limit = 1000;
         let df = df_from_csv(filename, Some(row_limit));
         let imputer_strategy = ImputerStrategy::Median;
         let imputer = Imputer::new(&imputer_strategy);
-        let numeric_columns: Vec<String> = df.numeric_columns().into_iter().map(|column| column.clone()).collect();
-        let df_inputed = imputer.transform(&df, &numeric_columns); 
+        let numeric_columns: Vec<String> = df
+            .numeric_columns()
+            .into_iter()
+            .map(|column| column.clone())
+            .collect();
+        let df_inputed = imputer.transform(&df, &numeric_columns);
         assert!(numeric_columns.into_iter().all(|column| {
             let (_, values) = df_inputed.get_column(&column);
-            values.into_iter().all(|value| !matches!(value, DataTypeValue::Null)) 
+            values
+                .into_iter()
+                .all(|value| !matches!(value, DataTypeValue::Null))
         }));
     }
-
 }

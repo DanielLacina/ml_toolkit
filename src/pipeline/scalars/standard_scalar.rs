@@ -43,43 +43,51 @@ impl Transformer for StandardScalar {
 
 #[cfg(test)]
 mod tests {
-    use crate::{dataframe::{csv::df_from_csv, DataTypeValue}, pipeline::transformers::Transformer};
+    use crate::{
+        dataframe::{DataTypeValue, csv::df_from_csv},
+        pipeline::transformers::Transformer,
+    };
     use std::iter::zip;
 
     use super::StandardScalar;
     #[test]
     #[should_panic]
-   fn test_std_scalar_with_strings() {
-      let df = df_from_csv("housing.csv", Some(100));
-      let std_scalar = StandardScalar::new();
-      let columns = df.columns().into_iter().map(|column| column.clone()).collect();
-      std_scalar.transform(&df, &columns);
-   }
+    fn test_std_scalar_with_strings() {
+        let df = df_from_csv("housing.csv", Some(100));
+        let std_scalar = StandardScalar::new();
+        let columns = df
+            .columns()
+            .into_iter()
+            .map(|column| column.clone())
+            .collect();
+        std_scalar.transform(&df, &columns);
+    }
     #[test]
-   fn test_std_scalar() {
-      let df = df_from_csv("housing.csv", Some(100));
-      let numeric_columns: Vec<String> = df.numeric_columns().iter().map(|column| column.clone().clone()).collect();
-      let std_scalar = StandardScalar::new();
-      let df_scaled = std_scalar.transform(&df, &numeric_columns);
-      assert!(numeric_columns.iter().all(|column| {
-           let mean = df.mean(column);
-           let std = df.std(column, Some(mean));
-           let (_, values) = df.get_column(column); 
-           let (_, scaled_values) = df_scaled.get_column(column); 
-           for (value, scaled_value) in zip(values, scaled_values) {
-              let value = match value {
-                 DataTypeValue::Float(inner) => {
-                    inner
-                 }, 
-                 _ => panic!("value must be float")
-              };
-              let expected_scaled_value = DataTypeValue::Float((value - mean)/std);
-              if expected_scaled_value != *scaled_value {
-                return false
-              } 
-           }
-           return true;
-        }
-      ));
-   }
+    fn test_std_scalar() {
+        let df = df_from_csv("housing.csv", Some(100));
+        let numeric_columns: Vec<String> = df
+            .numeric_columns()
+            .iter()
+            .map(|column| column.clone().clone())
+            .collect();
+        let std_scalar = StandardScalar::new();
+        let df_scaled = std_scalar.transform(&df, &numeric_columns);
+        assert!(numeric_columns.iter().all(|column| {
+            let mean = df.mean(column);
+            let std = df.std(column, Some(mean));
+            let (_, values) = df.get_column(column);
+            let (_, scaled_values) = df_scaled.get_column(column);
+            for (value, scaled_value) in zip(values, scaled_values) {
+                let value = match value {
+                    DataTypeValue::Float(inner) => inner,
+                    _ => panic!("value must be float"),
+                };
+                let expected_scaled_value = DataTypeValue::Float((value - mean) / std);
+                if expected_scaled_value != *scaled_value {
+                    return false;
+                }
+            }
+            return true;
+        }));
+    }
 }

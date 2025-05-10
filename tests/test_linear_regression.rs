@@ -45,27 +45,27 @@ fn test_linear_regression() {
     );
     let mut linear_regression = LinearRegression::new(0.0);
     linear_regression.fit(&train_inputs, &train_labels);
-    assert!(linear_regression.weights().len() == train_inputs[0].len());
+    assert!(linear_regression.weights().len() == train_inputs.get(0).len());
     assert!(linear_regression.bias() != 0.0);
     let (train_predictions, test_predictions) = (
         linear_regression.predict(&train_inputs),
         linear_regression.predict(&test_inputs),
     );
     let (train_labels, test_labels) = (
-        train_labels
+        train_labels.matrix()
             .into_iter()
-            .map(|label| label[0])
+            .map(|label| label.get(0))
             .collect::<Vec<f32>>(),
-        test_labels
+        test_labels.matrix()
             .into_iter()
-            .map(|label| label[0])
+            .map(|label| label.get(0))
             .collect::<Vec<f32>>(),
     );
     assert!(train_predictions.len() == train_labels.len());
     assert!(test_predictions.len() == test_labels.len());
     let (train_rmse, test_rmse) = (
-        rmse(&train_predictions, &train_labels),
-        rmse(&test_predictions, &test_labels),
+        rmse(&train_predictions.vector(), &train_labels),
+        rmse(&test_predictions.vector(), &test_labels),
     );
     assert!(train_rmse < 70000.0);
     assert!(test_rmse < 70000.0);

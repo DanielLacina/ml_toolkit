@@ -6,10 +6,10 @@ use ml_toolkit::inference::inference::rmse;
 use ml_toolkit::pipeline::encoders::one_hot_encoder::OneHotEncoder;
 use ml_toolkit::pipeline::imputers::imputer::{Imputer, ImputerStrategy};
 use ml_toolkit::pipeline::pipeline::*;
+use ml_toolkit::pipeline::polynomial_features::polynomial_features::PolynomialFeatures;
 use ml_toolkit::pipeline::scalars::standard_scalar::StandardScalar;
 use ml_toolkit::pipeline::transformers::Transformer;
 use ml_toolkit::sampling::sampling::StratifiedShuffleSplit;
-use ml_toolkit::pipeline::polynomial_features::polynomial_features::PolynomialFeatures;
 
 pub struct CombinedAttributesAdder;
 
@@ -58,10 +58,14 @@ fn main() {
     train_features.remove_column(label);
     test_features.remove_column(label);
     let polynomial_features = PolynomialFeatures::new(2);
-    let columns: Vec<String> = train_features.numeric_columns().into_iter().map(|column| column.clone()).collect(); 
+    let columns: Vec<String> = train_features
+        .numeric_columns()
+        .into_iter()
+        .map(|column| column.clone())
+        .collect();
     let imputer: Box<dyn Transformer> = Box::new(Imputer::new(&ImputerStrategy::Median));
-    let train_features = imputer.transform(&train_features, &columns); 
-    let test_features = imputer.transform(&test_features, &columns); 
+    let train_features = imputer.transform(&train_features, &columns);
+    let test_features = imputer.transform(&test_features, &columns);
     let train_features = polynomial_features.transform(&train_features, &columns);
     let test_features = polynomial_features.transform(&test_features, &columns);
     let (train_labels, test_labels) = (
@@ -91,18 +95,18 @@ fn main() {
         linear_regression.predict(&test_inputs),
     );
     let (train_labels, test_labels) = (
-        train_labels
+        train_labels.matrix()
             .into_iter()
-            .map(|label| label[0])
+            .map(|label| label.get(0))
             .collect::<Vec<f32>>(),
-        test_labels
+        test_labels.matrix()
             .into_iter()
-            .map(|label| label[0])
+            .map(|label| label.get(0))
             .collect::<Vec<f32>>(),
     );
     let (train_rmse, test_rmse) = (
-        rmse(&train_predictions, &train_labels),
-        rmse(&test_predictions, &test_labels),
+        rmse(&train_predictions.vector(), &train_labels),
+        rmse(&test_predictions.vector(), &test_labels),
     );
     println!("{}, {}", train_rmse, test_rmse);
 }
